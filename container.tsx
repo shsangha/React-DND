@@ -8,8 +8,13 @@ import {
   map,
   filter,
   pluck,
-  finalize
+  finalize,
+  pairwise,
+  throttleTime,
+  skip,
+  startWith
 } from "rxjs/operators";
+import { TweenLite } from "gsap";
 
 export default class Container extends Component {
   containerRef: React.RefObject<HTMLDivElement> = React.createRef();
@@ -67,7 +72,8 @@ export default class Container extends Component {
             return {
               target,
               ghostImage,
-              dataTransfer
+              dataTransfer,
+              dragEvent
             };
           }
 
@@ -114,20 +120,20 @@ export default class Container extends Component {
 
       this.eventSubscription = down$
         .pipe(
-          switchMap(({ target, ghostImage, dataTransfer }: any) =>
+          switchMap(({ target, ghostImage, dataTransfer, dragEvent }: any) =>
             move$.pipe(
-              tap(evt => {
-                //       console.log(ghostImage);
-                const x =
-                  evt.clientX -
-                  target.getBoundingClientRect().left -
-                  window.scrollX;
-                const y =
-                  evt.clientY -
-                  target.getBoundingClientRect().top -
-                  window.scrollY;
-
-                ghostImage.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+              tap((evt: any) => {
+                TweenLite.to(ghostImage, 0, {
+                  x:
+                    +evt.clientX -
+                    dragEvent.offsetX -
+                    dragEvent.target.offsetLeft,
+                  y:
+                    +evt.clientY -
+                    dragEvent.offsetY -
+                    dragEvent.target.offsetTop,
+                  background: "greenyellow"
+                });
               }),
               takeUntil(up$),
               finalize(() => {
