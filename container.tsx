@@ -10,9 +10,8 @@ import {
   pluck,
   finalize,
   pairwise,
-  throttleTime,
-  skip,
-  startWith
+  startWith,
+  bufferCount
 } from "rxjs/operators";
 import { TweenLite } from "gsap";
 
@@ -20,15 +19,10 @@ export default class Container extends Component {
   containerRef: React.RefObject<HTMLDivElement> = React.createRef();
   testRef: React.RefObject<HTMLDivElement> = React.createRef();
   eventSubscription?: Subscription;
+  lastScroll = 0;
 
   componentDidMount() {
     if (this.containerRef && this.containerRef.current) {
-      this.containerRef.current.addEventListener("scroll", () => {
-        if (this.containerRef.current) {
-          console.log(this.containerRef.current.scrollLeft);
-        }
-      });
-
       this.containerRef.current.style.touchAction = "none";
 
       const mouseDown$ = fromEvent(this.containerRef.current, "mousedown");
@@ -55,6 +49,8 @@ export default class Container extends Component {
           const target = this.getDraggableTarget(event.target);
 
           if (target && this.containerRef.current) {
+            this.lastScroll = this.containerRef.current.scrollTop;
+
             const dataTransfer = new DataTransfer();
             event.dataTransfer = dataTransfer;
             const dragEvent = new DragEvent("dragstart", event);
@@ -88,7 +84,11 @@ export default class Container extends Component {
         filter(x => !!x)
       );
 
-      const mouseMove$ = fromEvent(this.containerRef.current, "mousemove");
+      const mouseMove$ = fromEvent(this.containerRef.current, "mousemove").pipe(
+        tap(e => {
+          e.preventDefault();
+        })
+      );
       const touchMove$ = fromEvent(this.containerRef.current, "touchmove", {
         passive: true
       }).pipe(
@@ -129,9 +129,33 @@ export default class Container extends Component {
           switchMap(({ target, ghostImage, dataTransfer, dragEvent }: any) =>
             move$.pipe(
               tap((evt: any) => {
-                if (this.containerRef.current) {
-                  console.log(this.containerRef.current.scrollTop);
+                let move = 0;
 
+                if (this.containerRef.current) {
+                  const targetTop = ghostImage.getBoundingClientRect();
+                  const cont = this.containerRef.current.getBoundingClientRect();
+
+                  //    console.log(targetTop, cont);
+
+                  if (
+                    cont.top > targetTop.top &&
+                    this.containerRef.current.scrollTop !== 0
+                  ) {
+                    // while (this.containerRef.current.scrollTop > 0) {
+                    //      console.log("before", this.containerRef.current.scrollTop);
+                    this.containerRef.current.scrollTop =
+                      this.containerRef.current.scrollTop - 7;
+
+                    move = -7;
+
+                    //      console.log("after", this.containerRef.current.scrollTop);
+
+                    // ghostImage.style.top -= 2;
+                    // }
+                  }
+                }
+
+                if (this.containerRef.current && move === 0) {
                   TweenLite.to(ghostImage, 0, {
                     x:
                       +evt.clientX -
@@ -142,8 +166,11 @@ export default class Container extends Component {
                       +evt.clientY -
                       dragEvent.offsetY -
                       (dragEvent.target.offsetTop -
-                        this.containerRef.current.scrollTop),
-                    background: "greenyellow"
+                        this.containerRef.current.scrollTop) +
+                      (this.lastScroll - this.containerRef.current.scrollTop) +
+                      move,
+
+                    background: "red"
                   });
                 }
               }),
@@ -239,6 +266,8 @@ export default class Container extends Component {
         >
           first
         </div>
+
+        <div className={styles.oop}>OOP</div>
       </div>
     );
   }
