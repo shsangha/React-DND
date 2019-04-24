@@ -23,6 +23,12 @@ export default class Container extends Component {
 
   componentDidMount() {
     if (this.containerRef && this.containerRef.current) {
+      this.containerRef.current.addEventListener("scroll", () => {
+        if (this.containerRef.current) {
+          console.log(this.containerRef.current.scrollLeft);
+        }
+      });
+
       this.containerRef.current.style.touchAction = "none";
 
       const mouseDown$ = fromEvent(this.containerRef.current, "mousedown");
@@ -123,17 +129,23 @@ export default class Container extends Component {
           switchMap(({ target, ghostImage, dataTransfer, dragEvent }: any) =>
             move$.pipe(
               tap((evt: any) => {
-                TweenLite.to(ghostImage, 0, {
-                  x:
-                    +evt.clientX -
-                    dragEvent.offsetX -
-                    dragEvent.target.offsetLeft,
-                  y:
-                    +evt.clientY -
-                    dragEvent.offsetY -
-                    dragEvent.target.offsetTop,
-                  background: "greenyellow"
-                });
+                if (this.containerRef.current) {
+                  console.log(this.containerRef.current.scrollTop);
+
+                  TweenLite.to(ghostImage, 0, {
+                    x:
+                      +evt.clientX -
+                      dragEvent.offsetX -
+                      (dragEvent.target.offsetLeft -
+                        this.containerRef.current.scrollLeft),
+                    y:
+                      +evt.clientY -
+                      dragEvent.offsetY -
+                      (dragEvent.target.offsetTop -
+                        this.containerRef.current.scrollTop),
+                    background: "greenyellow"
+                  });
+                }
               }),
               takeUntil(up$),
               finalize(() => {
@@ -182,7 +194,40 @@ export default class Container extends Component {
   render() {
     return (
       <div ref={this.containerRef} className={styles.rxcont}>
-        <div>OTHER CONTER</div>
+        <div className={styles.c}>OTHER CONTER</div>
+        <div
+          react-draggable="true"
+          onDragStart={e => {
+            e.preventDefault();
+
+            e.dataTransfer.setData("dragContent", "ssjdfsd");
+          }}
+          className={styles.other}
+        >
+          first
+        </div>
+        <div
+          react-draggable="true"
+          onDragStart={e => {
+            e.preventDefault();
+
+            e.dataTransfer.setData("dragContent", "ssjdfsd");
+          }}
+          className={styles.other}
+        >
+          first
+        </div>
+        <div
+          react-draggable="true"
+          onDragStart={e => {
+            e.preventDefault();
+
+            e.dataTransfer.setData("dragContent", "ssjdfsd");
+          }}
+          className={styles.other}
+        >
+          first
+        </div>
         <div
           react-draggable="true"
           onDragStart={e => {
