@@ -11,7 +11,8 @@ import {
   finalize,
   pairwise,
   startWith,
-  bufferCount
+  bufferCount,
+  throttleTime
 } from "rxjs/operators";
 import { TweenLite } from "gsap";
 
@@ -23,10 +24,8 @@ export default class Container extends Component {
 
   componentDidMount() {
     if (this.containerRef && this.containerRef.current) {
-      this.containerRef.current.style.touchAction = "none";
-
       const mouseDown$ = fromEvent(this.containerRef.current, "mousedown");
-
+      //   document.body.style.touchAction = "none";
       const touchDown$ = fromEvent(this.containerRef.current, "touchstart", {
         passive: true
       }).pipe(
@@ -47,7 +46,6 @@ export default class Container extends Component {
       const down$ = merge(mouseDown$, touchDown$).pipe(
         map(event => {
           const target = this.getDraggableTarget(event.target);
-
           if (target && this.containerRef.current) {
             this.lastScroll = this.containerRef.current.scrollTop;
 
@@ -61,6 +59,7 @@ export default class Container extends Component {
 
             ghostImage.style.position = "fixed";
             ghostImage.style.pointerEvents = "none";
+            ghostImage.style.border = "3px solid black";
             ghostImage.style.margin = "0";
             ghostImage.style.top = target
               .getBoundingClientRect()
@@ -86,7 +85,7 @@ export default class Container extends Component {
 
       const mouseMove$ = fromEvent(this.containerRef.current, "mousemove").pipe(
         tap(e => {
-          e.preventDefault();
+          // e.preventDefault();
         })
       );
       const touchMove$ = fromEvent(this.containerRef.current, "touchmove", {
@@ -129,8 +128,6 @@ export default class Container extends Component {
           switchMap(({ target, ghostImage, dataTransfer, dragEvent }: any) =>
             move$.pipe(
               tap((evt: any) => {
-                let move = 0;
-
                 if (this.containerRef.current) {
                   const targetTop = ghostImage.getBoundingClientRect();
                   const cont = this.containerRef.current.getBoundingClientRect();
@@ -141,21 +138,16 @@ export default class Container extends Component {
                     cont.top > targetTop.top &&
                     this.containerRef.current.scrollTop !== 0
                   ) {
-                    // while (this.containerRef.current.scrollTop > 0) {
-                    //      console.log("before", this.containerRef.current.scrollTop);
-                    this.containerRef.current.scrollTop =
-                      this.containerRef.current.scrollTop - 7;
-
-                    move = -7;
-
-                    //      console.log("after", this.containerRef.current.scrollTop);
-
-                    // ghostImage.style.top -= 2;
-                    // }
+                    const scroll = TweenLite.to(this.containerRef.current, 0, {
+                      scrollTop: this.containerRef.current.scrollTop - 7,
+                      onComplete: () => {
+                        console.log("done");
+                      }
+                    });
                   }
                 }
 
-                if (this.containerRef.current && move === 0) {
+                if (this.containerRef.current) {
                   TweenLite.to(ghostImage, 0, {
                     x:
                       +evt.clientX -
@@ -168,8 +160,7 @@ export default class Container extends Component {
                       (dragEvent.target.offsetTop -
                         this.containerRef.current.scrollTop) +
                       (this.lastScroll - this.containerRef.current.scrollTop) +
-                      move,
-
+                      window.scrollY,
                     background: "red"
                   });
                 }
@@ -221,40 +212,6 @@ export default class Container extends Component {
   render() {
     return (
       <div ref={this.containerRef} className={styles.rxcont}>
-        <div className={styles.c}>OTHER CONTER</div>
-        <div
-          react-draggable="true"
-          onDragStart={e => {
-            e.preventDefault();
-
-            e.dataTransfer.setData("dragContent", "ssjdfsd");
-          }}
-          className={styles.other}
-        >
-          first
-        </div>
-        <div
-          react-draggable="true"
-          onDragStart={e => {
-            e.preventDefault();
-
-            e.dataTransfer.setData("dragContent", "ssjdfsd");
-          }}
-          className={styles.other}
-        >
-          first
-        </div>
-        <div
-          react-draggable="true"
-          onDragStart={e => {
-            e.preventDefault();
-
-            e.dataTransfer.setData("dragContent", "ssjdfsd");
-          }}
-          className={styles.other}
-        >
-          first
-        </div>
         <div
           react-draggable="true"
           onDragStart={e => {
@@ -267,7 +224,41 @@ export default class Container extends Component {
           first
         </div>
 
-        <div className={styles.oop}>OOP</div>
+        <div
+          react-draggable="true"
+          onDragStart={e => {
+            e.preventDefault();
+
+            e.dataTransfer.setData("dragContent", "ssjdfsd");
+          }}
+          className={styles.other}
+        >
+          first
+        </div>
+
+        <div
+          react-draggable="true"
+          onDragStart={e => {
+            e.preventDefault();
+
+            e.dataTransfer.setData("dragContent", "ssjdfsd");
+          }}
+          className={styles.other}
+        >
+          first
+        </div>
+
+        <div
+          react-draggable="true"
+          onDragStart={e => {
+            e.preventDefault();
+
+            e.dataTransfer.setData("dragContent", "ssjdfsd");
+          }}
+          className={styles.other}
+        >
+          first
+        </div>
       </div>
     );
   }
