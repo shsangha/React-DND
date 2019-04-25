@@ -45,7 +45,6 @@ export default class Container extends Component {
                 }
               }
 
-              console.log(event);
               return event;
             })
           )
@@ -92,9 +91,13 @@ export default class Container extends Component {
       );
 
       const mouseMove$ = fromEvent(this.containerRef.current, "mousemove");
+
       const touchMove$ = fromEvent(this.containerRef.current, "touchmove", {
         passive: true
       }).pipe(
+        tap(e => {
+          e.preventDefault();
+        }),
         switchMap((event: any) =>
           of(event).pipe(
             pluck("touches", "0"),
@@ -154,24 +157,37 @@ export default class Container extends Component {
                 }
 
                 if (this.containerRef.current) {
-                  console.log("MOVED");
+                  const x =
+                    +evt.clientX -
+                    dragEvent.offsetX -
+                    (dragEvent.target.offsetLeft -
+                      this.containerRef.current.scrollLeft);
+
+                  const y =
+                    +evt.clientY -
+                    dragEvent.offsetY -
+                    (dragEvent.target.offsetTop -
+                      this.containerRef.current.scrollTop) +
+                    (this.containerSrollOffset.y -
+                      this.containerRef.current.scrollTop) +
+                    window.scrollY;
+
+                  /* +
+                    (this.containerRef.current.scrollTop -
+                      this.containerSrollOffset.y);*/
+
                   TweenLite.to(ghostImage, 0, {
-                    x:
-                      +evt.clientX -
-                      dragEvent.offsetX -
-                      (dragEvent.target.offsetLeft -
-                        this.containerRef.current.scrollLeft),
-                    y:
-                      +evt.clientY -
-                      dragEvent.offsetY -
-                      (dragEvent.target.offsetTop -
-                        this.containerRef.current.scrollTop) +
-                      (this.containerSrollOffset.y -
-                        this.containerRef.current.scrollTop) +
-                      window.scrollY +
-                      (this.containerRef.current.scrollTop -
-                        this.containerSrollOffset.y),
-                    background: "red"
+                    x,
+                    y,
+                    background: "red",
+                    onComplete: () => {
+                      if (
+                        this.containerRef.current &&
+                        navigator.userAgent.indexOf("Chrome") === -1
+                      ) {
+                        this.containerSrollOffset.y = this.containerRef.current.scrollTop;
+                      }
+                    }
                   });
                 }
               }),
