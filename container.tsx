@@ -28,7 +28,6 @@ export default class Container extends Component {
   componentDidMount() {
     if (this.containerRef && this.containerRef.current) {
       const mouseDown$ = fromEvent(this.containerRef.current, "mousedown");
-      //   document.body.style.touchAction = "none";
       const touchDown$ = fromEvent(this.containerRef.current, "touchstart", {
         passive: true
       }).pipe(
@@ -55,7 +54,13 @@ export default class Container extends Component {
           const target = this.getDraggableTarget(event.target);
           if (target && this.containerRef.current) {
             this.containerSrollOffset.y = this.containerRef.current.scrollTop;
-
+            this.containerSrollOffset.x = this.containerRef.current.scrollLeft;
+            /* 
+            this.windowScrollOffset = {
+              x: window.scrollX,
+              y: window.screenY
+            };
+            */
             const dataTransfer = new DataTransfer();
             event.dataTransfer = dataTransfer;
             const dragEvent = new DragEvent("dragstart", event);
@@ -81,7 +86,11 @@ export default class Container extends Component {
               target,
               ghostImage,
               dataTransfer,
-              dragEvent
+              dragEvent: {
+                offsetX: dragEvent.offsetX,
+                target: Object.freeze(dragEvent.target),
+                offsetY: dragEvent.offsetY
+              }
             };
           }
 
@@ -90,14 +99,11 @@ export default class Container extends Component {
         filter(x => !!x)
       );
 
-      const mouseMove$ = fromEvent(this.containerRef.current, "mousemove");
+      const mouseMove$ = fromEvent(window, "mousemove");
 
-      const touchMove$ = fromEvent(this.containerRef.current, "touchmove", {
+      const touchMove$ = fromEvent(window, "touchmove", {
         passive: true
       }).pipe(
-        tap(e => {
-          e.preventDefault();
-        }),
         switchMap((event: any) =>
           of(event).pipe(
             pluck("touches", "0"),
@@ -118,11 +124,8 @@ export default class Container extends Component {
       );
       const move$ = merge(mouseMove$, touchMove$);
 
-      const mouseUp$ = fromEvent(
-        this.containerRef.current,
-        "mouseup"
-      ) as Observable<MouseEvent>;
-      const touchUp$ = fromEvent(this.containerRef.current, "touchend", {
+      const mouseUp$ = fromEvent(window, "mouseup") as Observable<MouseEvent>;
+      const touchUp$ = fromEvent(window, "touchend", {
         passive: true
       }) as Observable<TouchEvent>;
 
@@ -135,61 +138,16 @@ export default class Container extends Component {
           switchMap(({ target, ghostImage, dataTransfer, dragEvent }: any) =>
             move$.pipe(
               tap((evt: any) => {
-                if (this.containerRef.current) {
-                  const targetTop = ghostImage.getBoundingClientRect();
-                  const cont = this.containerRef.current.getBoundingClientRect();
-
-                  //    console.log(targetTop, cont);
-
-                  if (
-                    cont.top > targetTop.top &&
-                    this.containerRef.current.scrollTop !== 0
-                  ) {
-                    /*
-                    TweenLite.to(this.containerRef.current, 0, {
-                      scrollTop: this.containerRef.current.scrollTop - 7,
-                      onComplete: () => {
-                        console.log("done");
-                      }
-                    });
-                */
-                  }
-                }
-
-                if (this.containerRef.current) {
-                  const x =
-                    +evt.clientX -
-                    dragEvent.offsetX -
-                    (dragEvent.target.offsetLeft -
-                      this.containerRef.current.scrollLeft);
-
-                  const y =
-                    +evt.clientY -
-                    dragEvent.offsetY -
-                    (dragEvent.target.offsetTop -
-                      this.containerRef.current.scrollTop) +
-                    (this.containerSrollOffset.y -
-                      this.containerRef.current.scrollTop) +
-                    window.scrollY;
-
-                  /* +
-                    (this.containerRef.current.scrollTop -
-                      this.containerSrollOffset.y);*/
-
-                  TweenLite.to(ghostImage, 0, {
-                    x,
-                    y,
-                    background: "red",
-                    onComplete: () => {
-                      if (
-                        this.containerRef.current &&
-                        navigator.userAgent.indexOf("Chrome") === -1
-                      ) {
-                        this.containerSrollOffset.y = this.containerRef.current.scrollTop;
-                      }
-                    }
-                  });
-                }
+                this.moveGhostImage(evt, dragEvent, ghostImage);
+              }),
+              tap((evt: any) => {}),
+              tap((evt: any) => {
+                const ghostRect = ghostImage.getBoundingClientRect();
+                //    console.log(ghostRect);
+                //            this.scrollUp(ghostRect);
+                //            this.scrollDown(ghostRect);
+                //            this.scrollLeft(ghostRect);
+                //            this.scrollRight(ghostRect);
               }),
               takeUntil(up$),
               finalize(() => {
@@ -202,7 +160,7 @@ export default class Container extends Component {
         )
         .subscribe({
           next(x) {
-            //          console.log(x);
+            // console.log(x);
           },
           error(e) {
             console.log(e);
@@ -219,6 +177,102 @@ export default class Container extends Component {
       this.eventSubscription.unsubscribe();
     }
   }
+
+  moveGhostImage = (evt: any, dragEvent: any, ghostImage: any) => {
+    if (this.containerRef.current) {
+      const x =
+        +evt.clientX -
+        dragEvent.offsetX -
+        (dragEvent.target.offsetLeft - this.containerRef.current.scrollLeft) +
+        (this.containerSrollOffset.x - this.containerRef.current.scrollLeft); //+
+      //       window.scrollX;
+
+      const a = evt.clientY; //not the issue
+      const b = dragEvent.offsetY;
+      const c =
+        dragEvent.target.offsetTop - this.containerRef.current.scrollTop;
+      const d =
+        this.containerSrollOffset.y - this.containerRef.current.scrollTop;
+
+      const y =
+        +evt.clientY -
+        dragEvent.offsetY -
+        (dragEvent.target.offsetTop - this.containerRef.current.scrollTop) +
+        (this.containerSrollOffset.y - this.containerRef.current.scrollTop);
+      /*
+        +
+        window.scrollY;
+*/
+      console.log(a, b, c, d);
+      console.log(y);
+
+      TweenLite.to(ghostImage, 0, {
+        //    x,
+        y,
+        background: "red"
+      });
+      this.windowScrollOffset = {
+        x: window.scrollX,
+        y: window.scrollY
+      };
+    }
+  };
+
+  scrollUp = (target: any) => {
+    const container = this.containerRef.current;
+
+    if (container) {
+      const containerRect = container.getBoundingClientRect();
+
+      if (containerRect.top > target.top && container.scrollTop > 0) {
+        TweenLite.to(this.containerRef.current, 0, {
+          scrollTop: container.scrollTop - 7
+        });
+      }
+    }
+  };
+
+  scrollDown = (target: any) => {
+    const container = this.containerRef.current;
+
+    if (container) {
+      const containerRect = container.getBoundingClientRect();
+
+      if (containerRect.bottom < target.bottom) {
+        TweenLite.to(this.containerRef.current, 0, {
+          scrollTop: container.scrollTop + 7
+        });
+      }
+    }
+  };
+
+  scrollLeft = (target: any) => {
+    const container = this.containerRef.current;
+
+    if (container) {
+      const containerRect = container.getBoundingClientRect();
+
+      if (containerRect.left > target.left) {
+        TweenLite.to(this.containerRef.current, 0, {
+          scrollLeft: container.scrollLeft - 7
+        });
+      }
+    }
+  };
+
+  scrollRight = (target: any) => {
+    const container = this.containerRef.current;
+
+    if (container) {
+      const containerRect = container.getBoundingClientRect();
+
+      if (containerRect.right < target.right) {
+        TweenLite.to(this.containerRef.current, 0, {
+          scrollLeft: container.scrollLeft - 7
+        });
+      }
+    }
+  };
 
   getDraggableTarget = (element: any): HTMLElement | null => {
     if (element) {
