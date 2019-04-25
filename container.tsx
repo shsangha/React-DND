@@ -38,9 +38,14 @@ export default class Container extends Component {
             map((fistTouchProperties: any) => {
               for (let i in fistTouchProperties) {
                 if (i !== "target") {
-                  event[i] = fistTouchProperties[i];
+                  Object.defineProperty(event, i, {
+                    value: fistTouchProperties[i],
+                    writable: false
+                  });
                 }
               }
+
+              console.log(event);
               return event;
             })
           )
@@ -96,9 +101,13 @@ export default class Container extends Component {
             map((fistTouchProperties: any) => {
               for (let i in fistTouchProperties) {
                 if (i !== "target") {
-                  event[i] = fistTouchProperties[i];
+                  Object.defineProperty(event, i, {
+                    value: fistTouchProperties[i],
+                    writable: false
+                  });
                 }
               }
+
               return event;
             })
           )
