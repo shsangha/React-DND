@@ -1,185 +1,150 @@
 import React, { Component } from "react";
 import {
-  fromEvent,
   Subscription,
+  throwError,
   merge,
+  fromEvent,
   of,
-  Observable,
-  forkJoin,
-  EMPTY
+  iif,
+  forkJoin
 } from "rxjs";
-import {
-  switchMap,
-  tap,
-  takeUntil,
-  map,
-  filter,
-  pluck,
-  finalize,
-  pairwise,
-  expand,
-  delay,
-  throttleTime
-} from "rxjs/operators";
-import { TweenLite } from "gsap";
+import { switchMap, pluck, map, filter, tap } from "rxjs/operators";
 import styles from "./style.module.scss";
 
 export default class Container extends Component {
-  containerRef: React.RefObject<HTMLDivElement> = React.createRef();
-  testRef: React.RefObject<HTMLDivElement> = React.createRef();
-  eventSubscription?: Subscription;
+  public containerRef: React.RefObject<HTMLDivElement> = React.createRef();
+  public eventSubscription?: Subscription;
 
-  componentDidMount() {
-    if (this.containerRef && this.containerRef.current) {
-      const mouseDown$ = fromEvent(this.containerRef.current, "mousedown");
-      const touchDown$ = fromEvent(this.containerRef.current, "touchstart", {
-        passive: true
-      }).pipe(switchMap((event: any) => this.copyFirstTouchProps(event)));
-
-      const down$ = merge(mouseDown$, touchDown$).pipe(
-        switchMap(event =>
-          of(this.getDraggableTarget(event.target)).pipe(
-            filter((el): el is HTMLElement => !!el),
-            switchMap(target => {
-              const dataTransfer = new DataTransfer();
-
-              if (this.containerRef.current) {
-                return forkJoin({
-                  target: of(target),
-                  windowOffsets: of({
-                    x: window.scrollX,
-                    y: window.scrollY
+  public down$ = () => {
+    return this.containerRef.current
+      ? merge(
+          fromEvent<TouchEvent>(this.containerRef.current, "touchstart", {
+            passive: true
+          }),
+          fromEvent<MouseEvent>(this.containerRef.current, "mousedown")
+        ).pipe(
+          switchMap(downEvent =>
+            of(this.getDraggableTarget(downEvent.target)).pipe(
+              filter((el): el is HTMLElement => !!el),
+              switchMap(target => {
+                const dataTransfer = new DataTransfer();
+                return this.createDragEvent(
+                  downEvent,
+                  "dragstart",
+                  dataTransfer
+                ).pipe(
+                  tap(dragStartEvent => {
+                    target.dispatchEvent(dragStartEvent);
                   }),
-                  containerOffsets: of({
-                    x: this.containerRef.current.scrollLeft,
-                    y: this.containerRef.current.scrollTop
-                  }),
-                  ghostImage: of(this.createGhostImage(target)),
-                  dataTransfer: of(dataTransfer),
-                  dragStartEvent: of(event).pipe(
-                    map(evt => {
-                      evt.dataTransfer = dataTransfer;
-                      return evt;
-                    }),
-                    map(evt => new DragEvent("dragStart", evt)),
-                    tap(dragEvt => {
-                      target.dispatchEvent(dragEvt);
-                    }),
-                    map(event => ({
-                      target: Object.freeze(event.target),
-                      offsetX: event.offsetX,
-                      offsetY: event.offsetY
-                    }))
+                  switchMap(dragStartEvent =>
+                    this.createDragEvent(
+                      downEvent,
+                      "dragenter",
+                      dataTransfer
+                    ).pipe(
+                      switchMap(dragEnterEvent =>
+                        of(this.createGhostImage(target)).pipe(
+                          tap(() => {
+                            target.dispatchEvent(dragEnterEvent);
+                          }),
+                          switchMap(ghostImage =>
+                            this.containerRef.current
+                              ? forkJoin({
+                                  target: of(target),
+                                  ghostImage: of(ghostImage),
+                                  dataTransfer: of(dataTransfer),
+                                  offsets: of({
+                                    windowX: window.scrollX,
+                                    windowY: window.scrollY,
+                                    containerX: this.containerRef.current
+                                      .scrollLeft,
+                                    containerY: this.containerRef.current
+                                      .scrollTop,
+                                    target: Object.freeze(
+                                      dragStartEvent.target
+                                    ),
+                                    clientX: dragStartEvent.offsetX,
+                                    clientY: dragStartEvent.offsetY
+                                  })
+                                })
+                              : throwError("No container to attach to")
+                          )
+                        )
+                      )
+                    )
                   )
-                });
-              }
-              throw new Error("no container to attach to ");
-            })
+                );
+              })
+            )
           )
         )
-      );
-
-      const mouseMove$ = fromEvent(window, "mousemove");
-      const touchMove$ = fromEvent(window, "touchmove", {
-        passive: true
-      }).pipe(switchMap((event: any) => this.copyFirstTouchProps(event)));
-
-      const move$ = merge(mouseMove$, touchMove$);
-
-      const mouseUp$ = fromEvent(window, "mouseup") as Observable<MouseEvent>;
-      const touchUp$ = fromEvent(window, "touchend", {
-        passive: true
-      }) as Observable<TouchEvent>;
-
-      const contextMenu = fromEvent(this.containerRef.current, "contextmenu");
-
-      const up$ = merge(mouseUp$, touchUp$, contextMenu);
-
-      this.eventSubscription = down$
-        .pipe(
-          switchMap(
-            ({
-              dragStartEvent,
-              target,
-              windowOffsets,
-              containerOffsets,
-              ghostImage
-            }: any) =>
-              move$.pipe(
-                tap((evt: any) => {
-                  this.moveGhostImage(
-                    evt,
-                    dragStartEvent,
-                    ghostImage,
-                    windowOffsets,
-                    containerOffsets
-                  );
-                }),
-                throttleTime(100),
-                pairwise(),
-                switchMap(([first, second]) => {
-                  return of([first, second]).pipe(
-                    expand(([first, second]) => {
-                      //   console.log("fre");
-                      return this.scroll(ghostImage, first, second).pipe(
-                        delay(10)
-                      );
-                    })
-                  );
-                }),
-                takeUntil(up$),
-                finalize(() => {
-                  if (this.containerRef.current) {
-                    this.containerRef.current.removeChild(ghostImage);
-                  }
-                })
-              )
-          )
-        )
-
-        .subscribe({
-          next(x) {
-            //       console.log(x);
-          },
-          error(e) {
-            console.log(e);
-          },
-          complete() {
-            console.log("complete");
-          }
-        });
-    }
-  }
-
-  componentWillUnmount() {
-    if (this.eventSubscription) {
-      this.eventSubscription.unsubscribe();
-    }
-  }
-
-  createDragEvent = (event: any, dataTransfer: DataTransfer) => {
-    event.dataTransfer = dataTransfer;
-    return new DragEvent("dragstart", event);
+      : throwError("No container to attach to");
   };
 
-  copyFirstTouchProps = (event: any) =>
+  public move$ = () => {};
+
+  public componentDidMount() {
+    this.down$().subscribe({
+      next(c) {
+        console.log(c);
+      },
+      error(e) {
+        console.log(e);
+      },
+      complete() {
+        console.log("done");
+      }
+    });
+  }
+
+  // clean up subscription
+  public componentWillUnmount() {}
+
+  public createDragEvent = (
+    event: TouchEvent | MouseEvent,
+    type: string,
+    dataTransfer: DataTransfer
+  ) =>
+    of(event).pipe(
+      map(originalEvent => new DragEvent(type, originalEvent)),
+      map(dragEvent => {
+        Object.defineProperty(dragEvent, "dataTransfer", {
+          value: dataTransfer,
+          writable: false
+        });
+        return dragEvent;
+      }),
+      switchMap(dragEvent =>
+        iif(
+          () => event instanceof TouchEvent && type !== "dragend",
+          of(dragEvent).pipe(
+            switchMap(() =>
+              this.copyFirstTouchProps(event as TouchEvent, dragEvent)
+            )
+          ),
+          of(dragEvent)
+        )
+      )
+    );
+
+  public copyFirstTouchProps = (event: TouchEvent, dragEvent: DragEvent) =>
     of(event).pipe(
       pluck("touches", "0"),
       map((fistTouchProperties: any) => {
-        for (let i in fistTouchProperties) {
+        for (const i in fistTouchProperties) {
           if (i !== "target") {
-            Object.defineProperty(event, i, {
+            Object.defineProperty(dragEvent, i, {
               value: fistTouchProperties[i],
               writable: false
             });
           }
         }
 
-        return event;
+        return dragEvent;
       })
     );
 
-  createGhostImage = (target: any) => {
+  public createGhostImage = (target: HTMLElement) => {
     const ghostImage = target.cloneNode(true) as HTMLElement;
 
     ghostImage.style.position = "fixed";
@@ -193,96 +158,10 @@ export default class Container extends Component {
       this.containerRef.current.insertBefore(ghostImage, target);
       return ghostImage;
     }
-    throw new Error("no container to attach to ");
+    throw new Error("No container to attach to ");
   };
 
-  moveGhostImage = (
-    evt: any,
-    dragEvent: any,
-    ghostImage: any,
-    windowOffsets: any,
-    containerOffsets: any
-  ) => {
-    if (this.containerRef.current) {
-      const x =
-        +evt.clientX -
-        dragEvent.offsetX -
-        (dragEvent.target.offsetLeft - this.containerRef.current.scrollLeft) +
-        (containerOffsets.x - this.containerRef.current.scrollLeft);
-
-      const y =
-        +evt.clientY -
-        dragEvent.offsetY -
-        (dragEvent.target.offsetTop - this.containerRef.current.scrollTop) +
-        (containerOffsets.y - this.containerRef.current.scrollTop) +
-        windowOffsets.y;
-
-      TweenLite.to(ghostImage, 0, {
-        //    x,
-        y,
-        background: "red"
-      });
-    }
-  };
-
-  scroll = (ghostImage: any, first: any, second: any) => {
-    let scrolled = false;
-
-    const container = this.containerRef.current;
-
-    if (container) {
-      const directionX = Math.sign(second.clientX - first.clientX);
-      const directionY = Math.sign(second.clientY - first.clientY);
-      const containerRect = container.getBoundingClientRect();
-      const ghostImageRect = ghostImage.getBoundingClientRect();
-
-      const Y = this.scrollY(
-        ghostImageRect,
-        container,
-        containerRect,
-        directionY
-      );
-
-      scrolled = !!Y;
-      console.log(scrolled, "scerolle");
-      if (!!Y) {
-        TweenLite.to(container, 0, {
-          scrollTop: container.scrollTop + 10 * directionY
-        });
-      }
-    }
-    return scrolled ? of([first, second]) : EMPTY;
-  };
-
-  scrollY = (
-    ghostImageRect: any,
-    container: any,
-    containerRect: any,
-    directionY: any
-  ) =>
-    containerRect.top > ghostImageRect.top &&
-    container.scrollTop > 0 &&
-    directionY < 0
-      ? -1
-      : containerRect.bottom < ghostImageRect.bottom &&
-        container.scrollHeight -
-          (container.scrollTop + container.offsetHeight) >
-          0 &&
-        directionY > 0
-      ? 1
-      : 0;
-
-  scrollX = (target: any, container: any) => {
-    const containerRect = container.getBoundingClientRect();
-
-    return containerRect.left > target.left
-      ? -1
-      : containerRect.right < target.right
-      ? 1
-      : 0;
-  };
-
-  getDraggableTarget = (element: any): HTMLElement | null => {
+  public getDraggableTarget = (element: any): HTMLElement | null => {
     if (element) {
       if (
         element.hasAttribute("react-draggable") &&
@@ -297,14 +176,19 @@ export default class Container extends Component {
     return null;
   };
 
-  render() {
+  public render() {
     return (
       <div ref={this.containerRef} className={styles.rxcont}>
         <div
           react-draggable="true"
+          in-dec={3}
+          onDragEnter={e => {
+            console.log("enter");
+            e.preventDefault();
+          }}
           onDragStart={e => {
             e.preventDefault();
-
+            console.log("start");
             e.dataTransfer.setData("dragContent", "ssjdfsd");
           }}
           className={styles.other}
@@ -321,7 +205,7 @@ export default class Container extends Component {
           }}
           className={styles.other}
         >
-          first
+          second
         </div>
 
         <div
@@ -333,7 +217,7 @@ export default class Container extends Component {
           }}
           className={styles.other}
         >
-          first
+          third
         </div>
 
         <div
@@ -345,7 +229,7 @@ export default class Container extends Component {
           }}
           className={styles.other}
         >
-          first
+          fourth
         </div>
       </div>
     );
