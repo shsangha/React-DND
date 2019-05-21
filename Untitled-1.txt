@@ -6,21 +6,9 @@ import {
   fromEvent,
   of,
   iif,
-  forkJoin,
-  EMPTY
+  forkJoin
 } from "rxjs";
-import {
-  switchMap,
-  pluck,
-  map,
-  filter,
-  tap,
-  takeUntil,
-  finalize,
-  expand,
-  delay,
-  pairwise
-} from "rxjs/operators";
+import { switchMap, pluck, map, filter, tap } from "rxjs/operators";
 import styles from "./style.module.scss";
 import { TweenLite } from "gsap";
 
@@ -69,8 +57,15 @@ export default class Container extends Component {
                                   offsets: of({
                                     windowX: window.scrollX,
                                     windowY: window.scrollY,
-                                    clientX: dragStartEvent.pageX,
-                                    clientY: dragStartEvent.pageY
+                                    containerX: this.containerRef.current
+                                      .scrollLeft,
+                                    containerY: this.containerRef.current
+                                      .scrollTop,
+                                    target: Object.freeze(
+                                      dragStartEvent.target
+                                    ),
+                                    clientX: dragStartEvent.offsetX,
+                                    clientY: dragStartEvent.offsetY
                                   })
                                 })
                               : throwError("No container to attach to")
@@ -87,95 +82,21 @@ export default class Container extends Component {
       : throwError("No container to attach to");
   };
 
-  public move$ = (
-    offsets: { windowX: number; windowY: number },
-    ghostImage: HTMLElement
-  ) =>
+  public move$ = (a: any) =>
     merge(
-      fromEvent<MouseEvent>(window, "mousemove").pipe(
-        tap(event => {
-          event.preventDefault();
-        })
-      ),
+      fromEvent<MouseEvent>(window, "mousemove"),
       fromEvent<TouchEvent>(window, "touchmove", {
         passive: true
       })
     ).pipe(
-      tap(event => {
-        this.moveGhostImage(
-          event instanceof TouchEvent ? event.touches[0] : event,
-          offsets,
-          ghostImage
-        );
-      }),
-      pairwise(),
-      switchMap(([prev, current]) => {
-        const { clientX: prevX, clientY: prevY } =
-          prev instanceof TouchEvent ? prev.touches[0] : prev;
-
-        const { clientX: currentX, clientY: currentY } =
-          current instanceof TouchEvent ? current.touches[0] : current;
-
-        const deltaX = Math.sign(currentX - prevX);
-        const deltaY = Math.sign(currentY - prevY);
-
-        return of(this.getCurrentTarget(prevX, prevY)).pipe(
-          expand(over =>
-            iif(
-              () => !!this.containerRef.current,
-              of(
-                this.checkScroll(
-                  this.containerRef.current!,
-                  ghostImage,
-                  deltaX,
-                  deltaY
-                )
-              ).pipe(
-                switchMap(({ x, y }) =>
-                  of(this.getCurrentTarget(currentX, currentY)).pipe(
-                    tap(newOver => {
-                      if (over !== newOver) {
-                        console.log("anumal");
-                      }
-                    })
-                  )
-                )
-              ),
-              throwError("No contianer to attach to")
-            ).pipe(
-              delay(10),
-              tap(x => {
-                //    console.log(x);
-              })
-            )
-          )
-        );
+      tap(() => {
+      
       })
-    );
-
-  public up$ = () =>
-    merge(
-      fromEvent(window, "mouseup"),
-      fromEvent(window, "touchend"),
-      this.containerRef.current
-        ? fromEvent(this.containerRef.current, "contextmenu")
-        : throwError("No container to attach to ")
     );
 
   public componentDidMount() {
     this.down$()
-      .pipe(
-        switchMap(({ target, offsets, ghostImage, dataTransfer }) =>
-          this.move$(offsets, ghostImage).pipe(
-            takeUntil(this.up$()),
-            finalize(() => {
-              if (this.containerRef.current) {
-                this.containerRef.current.removeChild(ghostImage);
-              }
-            })
-          )
-        )
-      )
+      .pipe(switchMap(a => this.move$(a)))
       .subscribe({
         next(c) {
           //    console.log(c);
@@ -191,9 +112,6 @@ export default class Container extends Component {
 
   // clean up subscription
   public componentWillUnmount() {}
-
-  public getCurrentTarget = (clientX: number, clientY: number) =>
-    this.getDraggableTarget(document.elementFromPoint(clientX, clientY));
 
   public createDragEvent = (
     event: TouchEvent | MouseEvent,
@@ -239,36 +157,6 @@ export default class Container extends Component {
       })
     );
 
-  public checkScroll = (
-    container: HTMLElement,
-    ghostImage: HTMLElement,
-    deltaX: number,
-    deltaY: number
-  ) => {
-    const containerRect = container.getBoundingClientRect();
-    const ghostImageRect = ghostImage.getBoundingClientRect();
-
-    const x = 0;
-
-    const y =
-      containerRect.top > ghostImageRect.top &&
-      container.scrollTop > 0 &&
-      deltaY < 0
-        ? -1
-        : containerRect.bottom < ghostImageRect.bottom &&
-          container.scrollHeight -
-            (container.scrollTop + container.offsetHeight) >
-            0 &&
-          deltaY > 0
-        ? 1
-        : 0;
-
-    return {
-      x,
-      y
-    };
-  };
-
   public createGhostImage = (target: HTMLElement) => {
     const ghostImage = target.cloneNode(true) as HTMLElement;
 
@@ -286,16 +174,12 @@ export default class Container extends Component {
     throw new Error("No container to attach to ");
   };
 
-  public moveGhostImage = (event: any, offsets: any, ghostImage: any) => {
-    if (this.containerRef.current) {
-      const y = event.clientY - offsets.clientY + offsets.windowY;
 
-      TweenLite.to(ghostImage, 0, {
-        y,
-        background: "blue"
-      });
-    }
-  };
+  public moveGhostImage = () => {
+    
+
+
+  }
 
   public getDraggableTarget = (element: any): HTMLElement | null => {
     if (element) {
@@ -307,25 +191,9 @@ export default class Container extends Component {
       } else if (!element.parentElement) {
         return null;
       }
-
       return this.getDraggableTarget(element.parentElement);
     }
-
     return null;
-  };
-
-  public scroll = (x: number, y: number) => {
-    const container = this.containerRef.current;
-
-    if (container) {
-      TweenLite.to(container, 0, {
-        scrollTop: container.scrollTop + 7 * y,
-        scrollLeft: container.scrollLeft + 7 * x
-      });
-
-      return;
-    }
-    throw new Error("No container to attach to");
   };
 
   public render() {

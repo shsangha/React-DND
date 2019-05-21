@@ -1,0 +1,44 @@
+.rxcont {
+  margin-top: 35vh;
+  height: 400px;
+  overflow: scroll;
+  width: 100vw;
+  background-color: #eee;
+  min-width: 50%;
+  margin-right: 100px;
+}
+
+.other {
+  margin: 30px;
+  background-color: orange;
+  border: 2px solid greenyellow;
+  width: 50px;
+  height: 240px;
+
+  touch-action: none;
+}
+
+.c {
+  background-color: red;
+}
+
+.oop {
+  position: fixed;
+  top: 0;
+  z-index: 1000;
+  width: 300px;
+  //height: 4000px;
+}
+
+.any {
+  width: 100px;
+  height: 100px;
+}
+
+body {
+  overflow: hidden;
+}
+
+.poo {
+  background-color: greenyellow;
+}
