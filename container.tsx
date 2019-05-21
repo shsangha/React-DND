@@ -6,10 +6,20 @@ import {
   fromEvent,
   of,
   iif,
-  forkJoin
+  forkJoin,
+  NEVER
 } from "rxjs";
-import { switchMap, pluck, map, filter, tap } from "rxjs/operators";
+import {
+  switchMap,
+  pluck,
+  map,
+  filter,
+  tap,
+  takeUntil,
+  finalize
+} from "rxjs/operators";
 import styles from "./style.module.scss";
+import { TweenLite } from "gsap";
 
 export default class Container extends Component {
   public containerRef: React.RefObject<HTMLDivElement> = React.createRef();
@@ -60,11 +70,8 @@ export default class Container extends Component {
                                       .scrollLeft,
                                     containerY: this.containerRef.current
                                       .scrollTop,
-                                    target: Object.freeze(
-                                      dragStartEvent.target
-                                    ),
-                                    clientX: dragStartEvent.offsetX,
-                                    clientY: dragStartEvent.offsetY
+                                    clientX: dragStartEvent.pageX,
+                                    clientY: dragStartEvent.pageY
                                   })
                                 })
                               : throwError("No container to attach to")
@@ -81,24 +88,75 @@ export default class Container extends Component {
       : throwError("No container to attach to");
   };
 
-  public move$ = () => {};
+  public move$ = (
+    offsets: { windowX: number; windowY: number },
+    ghostImage: HTMLElement
+  ) =>
+    merge(
+      fromEvent<MouseEvent>(window, "mousemove"),
+      fromEvent<TouchEvent>(window, "touchmove", {
+        passive: true
+      })
+    ).pipe(
+      tap(moveEvent => {
+        moveEvent.preventDefault();
+      }),
+      tap(moveEvent => {
+        this.moveGhostImage(
+          moveEvent instanceof TouchEvent ? moveEvent.touches[0] : moveEvent,
+          offsets,
+          ghostImage
+        );
+      }),
+      tap(a => {
+        console.log(
+          this.getCurrentTarget(a instanceof TouchEvent ? a.touches[0] : a),
+          "targ"
+        );
+      })
+    );
+
+  public up$ = () =>
+    merge(
+      fromEvent(window, "mouseup"),
+      fromEvent(window, "touchend"),
+      this.containerRef.current
+        ? fromEvent(this.containerRef.current, "contextmenu")
+        : throwError("No container to attach to ")
+    );
 
   public componentDidMount() {
-    this.down$().subscribe({
-      next(c) {
-        console.log(c);
-      },
-      error(e) {
-        console.log(e);
-      },
-      complete() {
-        console.log("done");
-      }
-    });
+    this.down$()
+      .pipe(
+        switchMap(({ target, offsets, ghostImage, dataTransfer }) =>
+          this.move$(offsets, ghostImage).pipe(
+            takeUntil(this.up$()),
+            finalize(() => {
+              if (this.containerRef.current) {
+                this.containerRef.current.removeChild(ghostImage);
+              }
+            })
+          )
+        )
+      )
+      .subscribe({
+        next(c) {
+          //    console.log(c);
+        },
+        error(e) {
+          console.log(e);
+        },
+        complete() {
+          console.log("done");
+        }
+      });
   }
 
   // clean up subscription
   public componentWillUnmount() {}
+
+  public getCurrentTarget = (x: any) =>
+    this.getDraggableTarget(document.elementFromPoint(x.pageX, x.pageY));
 
   public createDragEvent = (
     event: TouchEvent | MouseEvent,
@@ -161,6 +219,18 @@ export default class Container extends Component {
     throw new Error("No container to attach to ");
   };
 
+  public moveGhostImage = (event: any, offsets: any, ghostImage: any) => {
+    console.log(offsets.containerY);
+    if (this.containerRef.current) {
+      const y = event.clientY - offsets.clientY + offsets.windowY;
+
+      TweenLite.to(ghostImage, 0, {
+        y,
+        background: "blue"
+      });
+    }
+  };
+
   public getDraggableTarget = (element: any): HTMLElement | null => {
     if (element) {
       if (
@@ -171,8 +241,10 @@ export default class Container extends Component {
       } else if (!element.parentElement) {
         return null;
       }
+
       return this.getDraggableTarget(element.parentElement);
     }
+
     return null;
   };
 
