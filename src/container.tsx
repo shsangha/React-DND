@@ -19,11 +19,11 @@ import {
   delay,
   pairwise,
   throttleTime,
-  startWith
+  map,
+  
 } from "rxjs/operators";
 import styles from "./style.module.scss";
 import { TweenLite } from "gsap";
-import { cursorTo } from "readline";
 
 export default class Container extends Component<
   {},
@@ -76,7 +76,7 @@ export default class Container extends Component<
                                 tap(() => {
                                   target.dispatchEvent(dragEnterEvent);
                                 }),
-                                tap((ghostImage)=>{this.resizeGhostImage(downEvent,ghostImage, target)}),
+                             //   tap((ghostImage)=>{this.resizeGhostImage(downEvent,ghostImage, target)}),
                                 switchMap(ghostImage =>
                                   this.containerRef.current
                                     ? forkJoin({
@@ -89,7 +89,23 @@ export default class Container extends Component<
                                           clientX: dragStartEvent.pageX,
                                           clientY: dragStartEvent.pageY
                                         }),
-                                        e: of(downEvent)
+                                        e: of(downEvent).pipe(map(()=>{ 
+                                          let x,y;
+                                          var rect = target.getBoundingClientRect();
+                                          if(downEvent instanceof TouchEvent){
+                                             x = downEvent.touches[0].pageX - rect.left;
+                                             y = downEvent.touches[0].pageY - rect.top;
+                                          }
+                                          else {
+                                            x= downEvent.pageX - rect.left,
+                                            y = downEvent.pageY - rect.top
+                                          }
+
+                                               return {
+                                                 offsetX: x,
+                                                 offsetY: y
+                                               }
+                                        }))
                                       })
                                     : throwError("No container to attach to")
                                 ),
@@ -160,7 +176,7 @@ export default class Container extends Component<
                                                       tap(() => {
                                                         if (newOver) {
                                                           newOver.classList.add();
-                                                          this.resizeGhostImage(e, ghostImage, newOver)
+                                                          this.resizeGhostImage(e, ghostImage, newOver, offsets)
                                                         
                                                           newOver.dispatchEvent(
                                                             this.createDragEvent(
@@ -370,7 +386,7 @@ export default class Container extends Component<
     throw new Error("No container to attach to");
   };
 
-  public resizeGhostImage = (here:any, ghostImage:HTMLElement, current:HTMLElement ) => {
+  public resizeGhostImage = (here:any, ghostImage:HTMLElement, current:HTMLElement, offsets:any ) => {
    
     console.log(here)
 
@@ -383,7 +399,7 @@ export default class Container extends Component<
     TweenLite.to(ghostImage, 0.3, {
        scaleX: current.clientWidth/ghostImage.clientWidth,
        scaleY: current.clientHeight/ghostImage.clientHeight,
-       transformOrigin: `${here.offsetX}px ${here.offsetY}px`,
+       transformOrigin: `${here.offsetX - window.scrollX}px ${here.offsetY - offsets.windowY}px`,
        background: 'yellow'
     } )
 
