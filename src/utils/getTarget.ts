@@ -2,7 +2,6 @@ import { DRAGGABLE_ATTR, DROPPABLE_ID } from "../constants";
 
 const getTarget = (attr: string) =>
   function getDraggableTarget(element: any): HTMLElement | null {
-    console.log(element);
     if (
       element.hasAttribute(attr) &&
       JSON.parse(element.attributes[attr].value) != null
