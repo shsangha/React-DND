@@ -1,4 +1,5 @@
 import React, { Component, createContext, createRef } from "react";
+import { scroll } from "./utils";
 
 interface Props {
   scroll: boolean;
@@ -11,49 +12,67 @@ interface State {
   origin: { id: number; index: number } | null;
   over: number | null;
   currentPosition: number | null;
-}
-
-interface Context {
-  updateDragData: (state: Partial<State>, props: Partial<Props>) => void;
-  updateDragContext: (state: State) => void;
-  move: () => void;
+  previousPosition: number | null;
+  withinContainer: boolean;
 }
 
 const defaultState = {
   data: [1, 2, 3, 4, 5],
   origin: null,
   over: null,
-  currentPosition: null
+  currentPosition: null,
+  previousPosition: null,
+  withinContainer: true
 };
-
-export const DragContext: React.Context<any> = createContext({});
 
 export default class DragEnabledContainer extends Component<Props, State> {
   public containerRef: React.RefObject<any> = createRef();
 
   public state = { ...defaultState };
 
-  public scroll = () => {
-    return true;
+  public scroll = (deltaX: number, deltaY: number, target: HTMLElement) => {
+    if (this.containerRef.current && this.props.scroll) {
+      return scroll(
+        deltaX,
+        deltaY,
+        this.containerRef.current,
+        target,
+        this.props.srollSensitivity
+      );
+    }
   };
 
-  public checkInContainer = () => {
-    return () => {
-      console.log("rinng");
-    };
-  };
-
-  public moveTo = (origin: number, target: number) => {
+  public checkInContainer = (x: number, y: number) => {
     this.setState(prevState => {
-      const data = [...prevState.data];
-      data.splice(origin, 1);
-      data.splice(target, 0, prevState.data[origin]);
+      const withinContainer =
+        this.containerRef.current &&
+        this.containerRef.current.contains(document.elementFromPoint(x, y));
+
+      if (withinContainer === prevState.withinContainer) {
+        return null;
+      }
       return {
-        data,
-        currentPosition: target
+        withinContainer
       };
     });
   };
+
+  public move = (target: number) => {
+    this.setState(prevState => {
+      if (prevState.currentPosition) {
+        const data = [...prevState.data];
+        data.splice(prevState.currentPosition, 1);
+        data.splice(target, 0, prevState.data[prevState.currentPosition]);
+        return {
+          data,
+          currentPosition: target
+        };
+      }
+      throw new Error("Cant call move method when not dragging");
+    });
+  };
+
+  public cancelMove = () => {};
 
   public swap = (origin: number, target: number) => {
     this.setState(prevState => {
@@ -68,18 +87,20 @@ export default class DragEnabledContainer extends Component<Props, State> {
     });
   };
 
+  public cancelSwap = () => {};
+
+  public insert = () => {};
+
+  public remove = (index: number) => {};
+
+  public edit = (index: number) => {};
+
+  public screenReaderAnnounce = () => {};
+
   public render() {
     return (
       <div ref={this.containerRef}>
-        <DragContext.Provider
-          value={{
-            scroll: this.scroll,
-            checkInContainer: this.checkInContainer,
-            move: this.componentWillReceiveProps
-          }}
-        >
-          {this.props.children({ data: this.state.data, move: this.moveTo })}
-        </DragContext.Provider>
+        {this.props.children({ data: this.state.data, move: this.move })}
       </div>
     );
   }
