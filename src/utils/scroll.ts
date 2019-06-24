@@ -1,18 +1,19 @@
 import { TweenLite } from "gsap";
+import checkScroll from "./checkScroll";
 
 export default (
-  x: number,
-  y: number,
+  deltaX: number,
+  deltaY: number,
   container: HTMLElement,
+  target: HTMLElement,
   sensitivity: number
 ) => {
-  if (container) {
-    TweenLite.to(container, 0, {
-      scrollTop: container.scrollTop + sensitivity * y,
-      scrollLeft: container.scrollLeft + sensitivity * x
-    });
+  const [x, y] = checkScroll(container, target, deltaX, deltaY);
 
-    return !(x === 0 && y === 0);
-  }
-  throw new Error("No container to attach to");
+  TweenLite.to(container, 0, {
+    scrollTop: container.scrollTop + sensitivity * y,
+    scrollLeft: container.scrollLeft + sensitivity * x
+  });
+
+  return !(x === 0 && y === 0);
 };
