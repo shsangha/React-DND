@@ -1,19 +1,50 @@
-import React from "react";
+import React, { createContext, cloneElement } from "react";
 import { DragContext } from "./context";
+import noop from "./utils/noop";
+
 interface Props {
   index: number;
-  disabled: boolean;
-  onDragEnter: () => void;
-  onDragLeave: () => void;
-  onDrop: () => void;
+  id: number; // translates to drop-id internally
+  disabled?: boolean;
+  onDragEnter?: () => void;
+  onDragLeave?: () => void;
+  onDrop?: () => void;
+  children: () => React.ReactNode;
 }
 
-export default (props: any) => {
-  return (
-    <DragContext.Consumer>
-      {args => {
-        return <div>Droppable</div>;
+interface DroppableContext {
+  id: number;
+  index: number;
+}
+
+const DroppableContext = createContext({} as DroppableContext);
+
+const Droppable = (props: Props) => {
+  const onDragEnter = (e: DragEvent) => {};
+
+  const onDragLeave = (e: DragEvent) => {};
+
+  const onDrop = (e: DragEvent) => {};
+
+  return cloneElement(
+    <DroppableContext.Provider
+      value={{
+        id: props.id,
+        index: props.index
       }}
-    </DragContext.Consumer>
+    >
+      {props.children()}
+    </DroppableContext.Provider>,
+    {
+      onDragEnter,
+      onDragLeave,
+      onDrop
+    }
   );
 };
+
+export default (props: Props) => (
+  <DragContext.Consumer>
+    {context => <Droppable {...context} {...props} />}
+  </DragContext.Consumer>
+);
