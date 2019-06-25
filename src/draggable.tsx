@@ -207,7 +207,9 @@ class Draggable extends Component<Props> {
                               }
                             }
                           }),
-                          filter(() => this.context.scroll(currentX, currentY)),
+                          filter(() =>
+                            this.context.scroll(currentX, currentY, dragRef)
+                          ),
                           tap(() =>
                             this.props.containerContext.scroll(
                               deltaX,
@@ -258,7 +260,6 @@ class Draggable extends Component<Props> {
 
   public onDragStart = (event: DragEvent) => {
     // event.stopPropagation();
-    console.log("dragstart");
     const { index, id, onDragStart } = this.props;
 
     const { updateDragState } = this.props.containerContext;
