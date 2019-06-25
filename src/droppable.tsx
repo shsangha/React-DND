@@ -1,50 +1,72 @@
 import React, { createContext, cloneElement } from "react";
-import { DragContext } from "./context";
-import noop from "./utils/noop";
+import { Container } from "./context";
+import { DroppableContext, DroppableProps, ContainerContext } from "./types";
+import { DROPPABLE_ID } from "./constants";
 
-interface Props {
-  index: number;
-  id: number; // translates to drop-id internally
-  disabled?: boolean;
-  onDragEnter?: () => void;
-  onDragLeave?: () => void;
-  onDrop?: () => void;
-  children: () => React.ReactNode;
-}
+export const DroppableContainer = createContext({} as DroppableContext);
 
-interface DroppableContext {
-  id: number;
-  index: number;
-}
+interface Props extends DroppableProps, DroppableContext, ContainerContext {}
 
-const DroppableContext = createContext({} as DroppableContext);
+const Droppable = ({
+  updateDragState,
+  id,
+  index,
+  children,
+  ...props
+}: Props) => {
+  const onDragEnter = (e: DragEvent) => {
+    updateDragState({
+      over: id
+    });
 
-const Droppable = (props: Props) => {
-  const onDragEnter = (e: DragEvent) => {};
+    if (props.onDragEnter) {
+      props.onDragEnter(e);
+    }
+  };
 
-  const onDragLeave = (e: DragEvent) => {};
+  const onDragLeave = (e: DragEvent) => {
+    updateDragState({
+      over: null
+    });
 
-  const onDrop = (e: DragEvent) => {};
+    if (props.onDragEnter) {
+      props.onDragEnter(e);
+    }
+  };
 
-  return cloneElement(
-    <DroppableContext.Provider
+  const onDrop = (e: DragEvent) => {
+    if (props.onDrop) {
+      props.onDrop(e);
+    }
+
+    updateDragState({
+      origin: null,
+      over: null,
+      currentPosition: null,
+      previousPosition: null,
+      withinContainer: true
+    });
+  };
+
+  return (
+    <DroppableContainer.Provider
       value={{
-        id: props.id,
-        index: props.index
+        id,
+        index
       }}
     >
-      {props.children()}
-    </DroppableContext.Provider>,
-    {
-      onDragEnter,
-      onDragLeave,
-      onDrop
-    }
+      {cloneElement(children(), {
+        onDragEnter,
+        onDragLeave,
+        onDrop,
+        [`${DROPPABLE_ID}`]: id
+      })}
+    </DroppableContainer.Provider>
   );
 };
 
-export default (props: Props) => (
-  <DragContext.Consumer>
-    {context => <Droppable {...context} {...props} />}
-  </DragContext.Consumer>
+export default (hocProps: DroppableProps) => (
+  <Container.Consumer>
+    {context => <Droppable {...context} {...hocProps} />}
+  </Container.Consumer>
 );
