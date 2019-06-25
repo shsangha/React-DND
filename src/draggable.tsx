@@ -12,13 +12,15 @@ import {
 import { DroppableContext, DraggableProps, ContainerContext } from "./types";
 import { Container } from "./context";
 import { DroppableContainer } from "./droppable";
-import { getDraggable, getDroppable } from "./utils/getTarget";
+import { getDroppable } from "./utils/getTarget";
 import createDragEvent from "./utils/createDragEvent";
 import noop from "./utils/noop";
 import moveWithDrag from "./utils/moveWithDrag";
 import resize from "./utils/resize";
 
-interface Props extends DroppableContext, DraggableProps {}
+interface Props extends DroppableContext, DraggableProps {
+  containerContext: ContainerContext;
+}
 
 const noRefErrorMsg = (index: number) => `Ref not attached at index ${index} `;
 
@@ -28,12 +30,11 @@ class Draggable extends Component<Props> {
   public static contextType = Container;
 
   public getSnapshotBeforeUpdate(prevProps: any, prevState: any) {
-    // this is where we need to capture prev pos
-    return null;
+    return this.DraggableRef.current!.getBoundingClientRect();
   }
 
-  public componentDidUpdate(prevProps: any, prevState: any) {
-    // this is where FLIP animation will be performed
+  public componentDidUpdate(prevProps: Props, prevState: never, snapshot: any) {
+    console.log(prevProps);
   }
 
   public componentDidMount() {
@@ -82,7 +83,6 @@ class Draggable extends Component<Props> {
               }),
               tap(() => {
                 const initalDropTarget = getDroppable(downEvent.target);
-                console.log(initalDropTarget);
                 if (initalDropTarget) {
                   initalDropTarget.dispatchEvent(
                     createDragEvent(downEvent, "dragenter", dataTransfer)
@@ -239,13 +239,12 @@ class Draggable extends Component<Props> {
       animationDuration,
       resize: propsResize,
       children,
-      onDragCancel,
+      containerContext,
+      onDragCancel, // needs to be removed bc it isnt an actual event listener
       ...rest
     } = this.props;
 
-    console.log(this.props);
-
-    return cloneElement(this.props.children(), {
+    return cloneElement(children(), {
       ref: this.DraggableRef,
       ...rest
     });
@@ -253,9 +252,19 @@ class Draggable extends Component<Props> {
 }
 
 const WrappedDraggable = (props: DraggableProps) => (
-  <DroppableContainer.Consumer>
-    {droppableContext => <Draggable {...droppableContext} {...props} />}
-  </DroppableContainer.Consumer>
+  <Container.Consumer>
+    {containerContext => (
+      <DroppableContainer.Consumer>
+        {droppableContext => (
+          <Draggable
+            containerContext={containerContext}
+            {...droppableContext}
+            {...props}
+          />
+        )}
+      </DroppableContainer.Consumer>
+    )}
+  </Container.Consumer>
 );
 
 WrappedDraggable.defaultProps = {
