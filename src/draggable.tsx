@@ -25,7 +25,7 @@ interface Props extends DroppableContext, DraggableProps {
 const noRefErrorMsg = (index: number) => `Ref not attached at index ${index} `;
 
 class Draggable extends Component<Props> {
-  public DraggableRef: React.RefObject<any> = React.createRef();
+  public DraggableRef = React.createRef<HTMLElement>();
 
   public static contextType = Container;
 
@@ -33,8 +33,31 @@ class Draggable extends Component<Props> {
     return this.DraggableRef.current!.getBoundingClientRect();
   }
 
-  public componentDidUpdate(prevProps: Props, prevState: never, snapshot: any) {
-    console.log(prevProps);
+  public componentDidUpdate(
+    prevProps: Props,
+    prevState: never,
+    cachedPosition: DOMRect
+  ) {
+    const {
+      containerContext: {
+        state: { currentPosition: previousPositon }
+      }
+    } = prevProps;
+    const {
+      index,
+      id,
+      containerContext: {
+        state: { currentPosition, origin }
+      }
+    } = this.props;
+
+    if (
+      index != null &&
+      currentPosition !== previousPositon &&
+      origin.id !== id
+    ) {
+      this.flipAnimation(cachedPosition);
+    }
   }
 
   public componentDidMount() {
@@ -45,8 +68,30 @@ class Draggable extends Component<Props> {
     (el.style.touchAction = "none"), (el.style.pointerEvents = "none");
   };
 
+  public flipAnimation = (cachedPosition: DOMRect) => {
+    const current = this.DraggableRef.current;
+
+    if (!cachedPosition || !current) {
+      return;
+    }
+
+    const currentPosition = current.getBoundingClientRect();
+
+    const translateX = cachedPosition.left - currentPosition.left;
+    const translateY = cachedPosition.top - cachedPosition.top;
+    const scaleX = cachedPosition.width / currentPosition.width;
+    const scaleY = cachedPosition.height / currentPosition.height;
+
+    current.style.transition = "";
+    current.style.transform = `translate(${translateX}px, ${translateY}px ) scale(${scaleX}px,${scaleY}px)`;
+    requestAnimationFrame(() => {
+      current.style.transition = "transform 0.5s";
+      current.style.transition = "";
+    });
+  };
+
   public sort$ = () => {
-    const dragRef: HTMLElement = this.DraggableRef.current;
+    const dragRef = this.DraggableRef.current;
 
     return dragRef
       ? merge(
@@ -74,12 +119,13 @@ class Draggable extends Component<Props> {
             }).pipe(
               delay(150),
               tap(() => {
-                this.DraggableRef.current.dispatchEvent(
+                console.log(dragRef);
+                dragRef.dispatchEvent(
                   createDragEvent(downEvent, "dragstart", dataTransfer)
                 );
               }),
               tap(() => {
-                this.setDraggingAttrs(this.DraggableRef.current);
+                this.setDraggingAttrs(dragRef);
               }),
               tap(() => {
                 const initalDropTarget = getDroppable(downEvent.target);
@@ -102,7 +148,7 @@ class Draggable extends Component<Props> {
                         ? moveEvent.touches[0]
                         : moveEvent,
                       offsets,
-                      this.DraggableRef.current
+                      dragRef
                     );
                   }),
 
@@ -145,7 +191,7 @@ class Draggable extends Component<Props> {
                               if (newDroppable) {
                                 if (this.props.resize) {
                                   resize(
-                                    this.DraggableRef.current,
+                                    dragRef,
                                     newDroppable,
                                     offsets,
                                     this.props.animationDuration
@@ -161,12 +207,12 @@ class Draggable extends Component<Props> {
                               }
                             }
                           }),
-                          //     filter(() => this.context.scroll(currentX, currentY)),
+                          filter(() => this.context.scroll(currentX, currentY)),
                           tap(() =>
-                            this.context.scroll(
+                            this.props.containerContext.scroll(
                               deltaX,
                               deltaY,
-                              this.DraggableRef.current
+                              dragRef
                             )
                           ),
                           delay(150)
@@ -191,7 +237,7 @@ class Draggable extends Component<Props> {
                       }
                     }),
                     tap(upEvent => {
-                      this.DraggableRef.current.dispatchEvent(
+                      dragRef.dispatchEvent(
                         createDragEvent(upEvent, "dragend", dataTransfer)
                       );
                     })
@@ -199,11 +245,7 @@ class Draggable extends Component<Props> {
                   fromEvent<KeyboardEvent>(window, "keydown").pipe(
                     filter(keyEvent => keyEvent.keyCode === 27),
                     tap(keyEvent => {
-                      if (this.props.onDragCancel) {
-                        this.context.updateDragContext(this.props.onDragCancel);
-                      } else {
-                        // reset the context here
-                      }
+                      this.onDragCancel();
                     })
                   )
                 )
@@ -215,10 +257,11 @@ class Draggable extends Component<Props> {
   };
 
   public onDragStart = (event: DragEvent) => {
-    event.stopPropagation();
+    // event.stopPropagation();
+    console.log("dragstart");
     const { index, id, onDragStart } = this.props;
 
-    const { updateDragState } = this.context;
+    const { updateDragState } = this.props.containerContext;
 
     updateDragState({
       origin: { index, id },
@@ -234,6 +277,20 @@ class Draggable extends Component<Props> {
     event.stopPropagation();
   };
 
+  public onDragCancel = () => {
+    if (this.props.onDragCancel) {
+      this.props.onDragCancel();
+    } else {
+      this.context.updateDragState({
+        origin: { id: null, index: null },
+        currentPosition: null,
+        previousPositon: null,
+        withinContainer: true,
+        over: null
+      });
+    }
+  };
+
   public render() {
     const {
       animationDuration,
@@ -245,8 +302,10 @@ class Draggable extends Component<Props> {
     } = this.props;
 
     return cloneElement(children(), {
+      ...rest,
       ref: this.DraggableRef,
-      ...rest
+      onDragStart: this.onDragStart,
+      onDragEnd: this.onDragEnd
     });
   }
 }
