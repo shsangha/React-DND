@@ -1,7 +1,3 @@
-export const DRAGGABLE_ATTR = "data-draggable";
+export const DRAGGING_ELEMENT_ID = "react_dnd_dragging_element_id";
 
-export const DROPPABLE_ID = "drop-id";
-
-export const SORT = "swap";
-
-export const UPLOAD = "upload";
+export const PLACEHOLDER_ID = "react_dnd_placeholder_element_id";
