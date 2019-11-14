@@ -1,34 +1,58 @@
 export default (
-  container: HTMLElement,
+  container: HTMLElement | null,
   target: HTMLElement,
   deltaX: number,
   deltaY: number
 ): [number, number] => {
-  const containerRect = container.getBoundingClientRect();
-  const targetRect = target.getBoundingClientRect();
+  let x = 0;
+  let y = 0;
 
-  const x =
-    containerRect.left > targetRect.left &&
-    container.scrollLeft > 0 &&
-    deltaX < 0
-      ? -1
-      : containerRect.left < targetRect.left &&
-        container.scrollWidth - (container.scrollLeft + container.offsetWidth) >
-          0 &&
-        deltaY > 0
-      ? 1
-      : 0;
+  if (container) {
+    const containerRect = container.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
 
-  const y =
-    containerRect.top > targetRect.top && container.scrollTop > 0 && deltaY < 0
-      ? -1
-      : containerRect.bottom < targetRect.bottom &&
-        container.scrollHeight -
-          (container.scrollTop + container.offsetHeight) >
-          0 &&
-        deltaY > 0
-      ? 1
-      : 0;
+    const computedStyle = window.getComputedStyle(container);
+    const xBehavior = computedStyle.getPropertyValue("overflow-x");
+    const yBehavior = computedStyle.getPropertyValue("overflow-y");
+
+    const scrollsX = xBehavior === "auto" || xBehavior === "scroll";
+    const scrollsY = yBehavior === "auto" || yBehavior === "scroll";
+
+    if (scrollsX) {
+      if (containerRect.left > targetRect.left && deltaX <= 0) {
+        if (container.scrollLeft > 0) {
+          x = -1;
+        }
+      }
+      if (containerRect.right < targetRect.right) {
+        if (
+          Math.ceil(container.scrollWidth - container.scrollLeft) !==
+            container.clientWidth &&
+          deltaX >= 0
+        ) {
+          x = 1;
+        }
+      }
+    }
+
+    if (scrollsY) {
+      if (containerRect.top > targetRect.top) {
+        if (container.scrollTop > 0) {
+          y = -1;
+        }
+      }
+
+      if (containerRect.bottom < targetRect.bottom) {
+        if (
+          Math.ceil(container.scrollHeight - container.scrollTop) !==
+            container.clientHeight &&
+          deltaY >= 0
+        ) {
+          y = 1;
+        }
+      }
+    }
+  }
 
   return [x, y];
 };
