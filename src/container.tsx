@@ -1,15 +1,10 @@
-import React, { createContext, createRef, Component } from "react";
-import {
-  Subject,
-  race,
-  fromEvent,
-  forkJoin,
-  of,
-  merge,
-  iif,
-  throwError,
-  NEVER
-} from "rxjs";
+import React, {
+  createContext,
+  createRef,
+  Component,
+  cloneElement
+} from "react";
+import { Subject, race, fromEvent, forkJoin, of, merge, iif } from "rxjs";
 import {
   switchMap,
   filter,
@@ -19,10 +14,8 @@ import {
   expand,
   delay,
   takeUntil,
-  throttleTime,
   debounceTime
 } from "rxjs/operators";
-import { TweenLite } from "gsap";
 import createPlaceHolder from "./utils/createPlaceHolder";
 import getOffsets from "./utils/getOffsets";
 import { getDraggable, getDroppable } from "./utils/getDraggable";
@@ -34,29 +27,22 @@ import createEvent from "./utils/createEvent";
 import { getDraggableAttrs, getDroppableAttrs } from "./utils/getTargetAttrs";
 import preventTouchScroll from "./utils/preventTouchScroll";
 import memoizedScroll from "./utils/memoizedScroll";
-import { DRAGGING_ELEMENT_ID, PLACEHOLDER_ID } from "./constants";
-import { ContainerState } from "./types";
-import { placeholder } from "@babel/types";
+import {
+  ContainerState,
+  ContainerContext as ContextType,
+  ContainerProps,
+  ElementWDataAttrs
+} from "./types";
+import { ASSITIVE_TEXT_ID } from "./constants";
 
-interface ExtendedHTMLElement extends HTMLElement {
-  ["data-collection"]: string;
-  ["data-index"]: number;
-}
+export const ContainerContext = createContext({} as ContextType);
 
-interface Props {
-  children: (state: any) => React.ReactNode;
-  resize: boolean;
-}
-
-interface RefObject {
-  [key: string]: React.RefObject<HTMLElement>;
-}
-
-export const ContainerContext = createContext({} as any);
-
-export default class Container extends Component<Props, ContainerState> {
+export default class Container extends Component<
+  ContainerProps,
+  ContainerState
+> {
   public containerRef = createRef<any>();
-
+  public liveRegionRef = createRef<HTMLSpanElement>();
   public droppabeRefs: { [key: string]: HTMLElement } = {};
 
   public registerDroppable = (name: string, ref: any) => {
@@ -69,23 +55,21 @@ export default class Container extends Component<Props, ContainerState> {
 
   public mouse$ = new Subject<React.MouseEvent>();
   public touch$ = new Subject<React.TouchEvent>();
+  public arrow$ = new Subject<React.KeyboardEvent>();
 
   public state = {
     dragState: {
       currentIndex: null,
-      currentCollection: null
+      currentCollection: null,
+      moveType: null
     },
-    values: {
-      name: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-      age: ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"],
-      smell: ["er"]
-    }
+    values: this.props.initialState
   };
 
   public static defaultProps = {
-    scrollX: false,
-    scrollY: false,
-    resize: true
+    initalState: {},
+    resize: true,
+    placeholderClass: ""
   };
 
   public mouseDown = (e: React.MouseEvent) => {
@@ -96,31 +80,51 @@ export default class Container extends Component<Props, ContainerState> {
     this.touch$.next(e);
   };
 
-  public createDrag$ = () => {
-    return race(this.mouse$, this.touch$).pipe(
+  public keyStart = (e: React.KeyboardEvent) => {
+    if (e.key !== "Tab") {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+
+    if (e.keyCode === 32) {
+      const a = e.target as HTMLElement;
+      a.blur();
+      this.arrow$.next(e);
+    }
+  };
+
+  public createDrag$ = () =>
+    race(this.mouse$, this.touch$).pipe(
       switchMap(downEvent => {
-        const current = getDraggable(downEvent.target) as ExtendedHTMLElement;
-        const placeHolder = createPlaceHolder(current);
+        downEvent.persist();
+
+        const current = getDraggable(downEvent.target) as ElementWDataAttrs;
+
+        const placeHolder = createPlaceHolder(
+          current,
+          this.props.placeholderClass
+        );
         const placeholderRect = current.getBoundingClientRect();
 
-        current.style.background = "green";
-
-        const { state } = this;
+        const { state: initalState } = this;
 
         let currentPos = getDraggableAttrs(current);
 
         hasValidDraggableProps(currentPos);
 
         this.setState({
-          dragState: currentPos
+          dragState: { ...currentPos, moveType: "pointer" }
         });
+
+        this.screenReaderAnnounce(
+          `Dragging ${currentPos.currentCollection} at index ${
+            currentPos.currentIndex
+          }`
+        );
 
         return forkJoin({
           offsets: of({ ...getOffsets(downEvent, current) })
         }).pipe(
-          tap(() => {
-            this.setState({ dragState: currentPos });
-          }),
           switchMap(({ offsets }) =>
             merge(
               fromEvent<React.MouseEvent>(window, "mousemove"),
@@ -141,8 +145,7 @@ export default class Container extends Component<Props, ContainerState> {
                 moveWithDrag(getEventType(moveEvent), offsets, placeHolder);
               }),
               pairwise(),
-              debounceTime(33.3),
-
+              debounceTime(30),
               switchMap(([prevMove, currentMove]) => {
                 const { clientX: prevX, clientY: prevY } = getEventType(
                   prevMove
@@ -179,8 +182,9 @@ export default class Container extends Component<Props, ContainerState> {
                               newPos.currentCollection!
                             ].dispatchEvent(
                               createEvent("dragenter", {
-                                ...newPos,
-                                ...offsets,
+                                type: "move",
+                                position: newPos,
+                                offsets,
                                 placeholderRect
                               })
                             );
@@ -192,8 +196,9 @@ export default class Container extends Component<Props, ContainerState> {
                               newPos.currentCollection!
                             ].dispatchEvent(
                               createEvent("dragover", {
-                                ...newPos,
-                                ...offsets,
+                                type: "move",
+                                position: newPos,
+                                offsets,
                                 placeholderRect
                               })
                             );
@@ -233,8 +238,9 @@ export default class Container extends Component<Props, ContainerState> {
                                 droppableattrs.currentCollection
                               ].dispatchEvent(
                                 createEvent("dragenter", {
-                                  ...currentPos,
-                                  ...offsets,
+                                  type: "move",
+                                  position: currentPos,
+                                  offsets,
                                   placeholderRect
                                 })
                               );
@@ -257,24 +263,147 @@ export default class Container extends Component<Props, ContainerState> {
             )
           ),
           takeUntil(
-            merge(fromEvent<MouseEvent>(window, "mouseup")).pipe(
+            merge(
+              fromEvent<FocusEvent>(window, "blur").pipe(
+                tap(() => {
+                  placeHolder.remove();
+                })
+              ),
+              merge(
+                fromEvent<MouseEvent>(window, "mouseup"),
+                fromEvent<TouchEvent>(window, "touchend")
+              ).pipe(
+                tap(() => {
+                  placeHolder.remove();
+                }),
+                tap(() => {
+                  this.screenReaderAnnounce("Drag ended");
+                }),
+                map(event => {
+                  if (event instanceof TouchEvent) {
+                    return event.changedTouches[0];
+                  } else {
+                    return event as MouseEvent;
+                  }
+                }),
+                map(event =>
+                  getDroppable(
+                    document.elementFromPoint(event.clientX, event.clientY)
+                  )
+                ),
+                tap(target => {
+                  if (target instanceof HTMLElement) {
+                    this.setState({
+                      dragState: initalState.dragState
+                    });
+                    return;
+                  }
+                  this.setState(initalState);
+                })
+              )
+            )
+          )
+        );
+      })
+    );
+
+  public createKeyboard$ = () =>
+    this.arrow$.pipe(
+      switchMap(e => {
+        const { state: initalState } = this;
+
+        const current = getDraggable(e.target) as ElementWDataAttrs;
+
+        const dragState = getDraggableAttrs(current);
+
+        this.setState({ dragState: { ...dragState, moveType: "keyboard" } });
+
+        const refNames = Object.keys(this.droppabeRefs);
+
+        let index = refNames.indexOf(dragState.currentCollection);
+
+        this.screenReaderAnnounce(
+          `Dragging ${dragState.currentCollection} ${dragState.currentIndex}`
+        );
+
+        return fromEvent<KeyboardEvent>(window, "keydown").pipe(
+          tap(event => {
+            event.preventDefault();
+          }),
+          filter(event =>
+            ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(
+              event.key
+            )
+          ),
+          tap(event => {
+            if (event.key === "ArrowDown") {
+              if (index < refNames.length - 1) {
+                index++;
+
+                this.droppabeRefs[refNames[index]].dispatchEvent(
+                  createEvent("dragenter", {
+                    type: "ArrowDown",
+                    container: this.containerRef.current
+                  })
+                );
+              }
+            }
+            if (event.key === "ArrowUp") {
+              if (index > 0) {
+                index--;
+
+                this.droppabeRefs[refNames[index]].dispatchEvent(
+                  createEvent("dragenter", {
+                    type: "ArrowUp",
+                    container: this.containerRef.current
+                  })
+                );
+              }
+            }
+            if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+              this.droppabeRefs[refNames[index]].dispatchEvent(
+                createEvent("dragover", {
+                  type: event.key,
+                  container: this.containerRef.current
+                })
+              );
+            }
+          }),
+          takeUntil(
+            merge(
+              fromEvent<MouseEvent>(window, "click").pipe(
+                tap(() => {
+                  this.setState(initalState);
+                })
+              ),
+              fromEvent<KeyboardEvent>(window, "keydown").pipe(
+                tap(event => {
+                  event.preventDefault();
+                }),
+                filter(event => event.keyCode === 32 || event.key === "Escape"),
+                tap(event => {
+                  current.focus();
+
+                  if (event.key === "Escape") {
+                    this.setState(initalState);
+                  } else {
+                    this.setState({ dragState: initalState.dragState });
+                  }
+                })
+              )
+            ).pipe(
               tap(() => {
-                placeHolder.remove();
-              }),
-              tap(event => {
-                // need to cancel here
+                this.screenReaderAnnounce("Drag ended");
               })
             )
           )
         );
       })
     );
-  };
-
-  public createKeyboard$ = () => {};
 
   public componentDidMount() {
     const drag$ = this.createDrag$();
+    const kbd$ = this.createKeyboard$();
 
     this.containerRef.current.addEventListener(
       "touchmove",
@@ -282,15 +411,8 @@ export default class Container extends Component<Props, ContainerState> {
       { passive: false }
     );
 
-    drag$.subscribe(
-      () => {},
-      x => {
-        console.log(x);
-      },
-      () => {
-        console.log("done");
-      }
-    );
+    kbd$.subscribe();
+    drag$.subscribe();
   }
 
   public componentWillUnmount() {
@@ -301,10 +423,71 @@ export default class Container extends Component<Props, ContainerState> {
     );
   }
 
+  public removeDraggable = (name: string, index: number) => {
+    this.setState((prevState: ContainerState) => {
+      const copy = [...prevState.values[name]];
+
+      copy.splice(index, 1);
+
+      return {
+        values: {
+          ...prevState.values,
+          [name]: copy
+        }
+      };
+    });
+  };
+
+  public removeDroppable = (name: string) => {
+    this.setState((prevState: ContainerState) => {
+      const copy = { ...prevState.values };
+
+      delete copy[name];
+
+      return {
+        values: copy
+      };
+    });
+  };
+
+  public insertDraggable = (name: string, value: any, index?: number) => {
+    this.setState((prevState: ContainerState) => {
+      const copy = [...prevState.values[name]];
+
+      if (index) {
+        copy.splice(index, 0, value);
+
+        return {
+          values: {
+            ...prevState.values,
+            [name]: copy
+          }
+        };
+      }
+      return {
+        values: {
+          ...prevState.values,
+          [name]: [...copy, value]
+        }
+      };
+    });
+  };
+
+  public insertDroppable = (name: string, initalValues: any[]) => {
+    this.setState((prevState: ContainerState) => {
+      return {
+        values: {
+          ...prevState.values,
+          [name]: initalValues
+        }
+      };
+    });
+  };
+
   public updateState = (
     change: (
       prevState: Readonly<ContainerState>,
-      props: Readonly<Props>
+      props: Readonly<ContainerProps>
     ) => ContainerState | Pick<ContainerState, "dragState" | "values"> | null,
     cb?: () => void
   ) => {
@@ -315,29 +498,57 @@ export default class Container extends Component<Props, ContainerState> {
     });
   };
 
+  public screenReaderAnnounce = (message: string) => {
+    const region = this.liveRegionRef.current;
+
+    if (region) {
+      region.innerHTML = message;
+    }
+  };
+
   public render() {
+    const { children } = this.props;
+
     return (
       <ContainerContext.Provider
         value={{
           state: this.state,
           mouseDown: this.mouseDown,
           touchStart: this.touchStart,
+          keyStart: this.keyStart,
           registerDroppable: this.registerDroppable,
           unregisterDroppable: this.unregisterDroppable,
-          updateState: this.updateState
+          updateState: this.updateState,
+          screenReaderAnnounce: this.screenReaderAnnounce
         }}
       >
-        <div
-          style={{
-            width: "50vw",
-            height: "50vh",
-            background: "green",
-            overflow: "scroll"
-          }}
-          ref={this.containerRef}
-        >
-          {this.props.children(this.state)}
-        </div>
+        <>
+          {cloneElement(
+            children({
+              state: this.state,
+              insertDraggable: this.insertDraggable,
+              insertDroppable: this.insertDroppable,
+              removeDraggable: this.removeDraggable,
+              removeDroppable: this.removeDroppable,
+              screenReaderAnnounce: this.screenReaderAnnounce
+            }),
+            {
+              ref: this.containerRef
+            }
+          )}
+          <span
+            aria-live="assertive"
+            ref={this.liveRegionRef}
+            style={{
+              width: 0,
+              height: 0,
+              position: "fixed",
+              opacity: 0,
+              pointerEvents: "none",
+              top: "-1000px"
+            }}
+          />
+        </>
       </ContainerContext.Provider>
     );
   }
