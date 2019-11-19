@@ -176,6 +176,10 @@ export default class Droppable extends Component<DroppableProps> {
               };
             }
           }
+        } else {
+          this.context.screenReaderAnounce(
+            `Droppable ${this.props.name} at capaccity`
+          );
         }
       },
       () => {
