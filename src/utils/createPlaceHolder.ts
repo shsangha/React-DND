@@ -1,6 +1,6 @@
 import { PLACEHOLDER_ID } from "../constants";
 
-export default (element: HTMLElement) => {
+export default (element: HTMLElement, className: string) => {
   const placeHolder = element.cloneNode(true) as HTMLElement;
 
   const rect = element.getBoundingClientRect();
@@ -16,6 +16,9 @@ export default (element: HTMLElement) => {
     placeHolder.style.display = "inline-block";
     placeHolder.style.background = "red";
     placeHolder.id = PLACEHOLDER_ID;
+    if (className) {
+      placeHolder.classList.add(className);
+    }
 
     document.body.appendChild(placeHolder);
   });
