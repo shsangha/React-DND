@@ -1,19 +1,21 @@
 import { TweenLite } from "gsap";
-import checkScroll from "./checkScroll";
 
 export default (
-  deltaX: number,
-  deltaY: number,
-  container: HTMLElement,
-  target: HTMLElement,
-  sensitivity: number
+  [x, y]: [number, number],
+  element: HTMLElement | null,
+  scrollSensitiity: number
 ) => {
-  const [x, y] = checkScroll(container, target, deltaX, deltaY);
+  if (element) {
+    if (x !== 0 || y !== 0) {
+      TweenLite.to(element, 0.3, {
+        scrollTo: {
+          x: `+=${x * scrollSensitiity}`,
+          y: `+=${y * scrollSensitiity}`
+        }
+      });
+      return true;
+    }
+  }
 
-  TweenLite.to(container, 0, {
-    scrollTop: container.scrollTop + sensitivity * y,
-    scrollLeft: container.scrollLeft + sensitivity * x
-  });
-
-  return !(x === 0 && y === 0);
+  return false;
 };

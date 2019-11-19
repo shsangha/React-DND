@@ -8,6 +8,6 @@ export default (posObj: Pos) => {
     typeof posObj.currentIndex !== "number" ||
     typeof posObj.currentCollection !== "string"
   ) {
-    throw new Error("get msg later");
+    throw new Error("Index and collection are required props");
   }
 };
