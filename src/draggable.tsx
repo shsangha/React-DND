@@ -3,23 +3,19 @@ import { ContainerContext } from "./container";
 import { DroppableContext } from "./droppable";
 import { TweenLite } from "gsap";
 import { DRAGGING_ELEMENT_ID } from "./constants";
+import {
+  ContainerState,
+  DraggableProps,
+  CombinedDraggableProps
+} from "./types";
 
-interface Props {
-  children: React.ReactNode;
-  index: number;
-}
-
-interface ComponentProps extends Props {
-  collection: string;
-}
-
-class Draggable extends Component<ComponentProps> {
+class Draggable extends Component<CombinedDraggableProps> {
   public static contextType = ContainerContext;
 
-  public ref = createRef<HTMLDivElement>();
+  public ref = createRef<any>();
 
   public componentDidUpdate(
-    prevProps: any,
+    prevProps: CombinedDraggableProps,
     _: any,
     snapshot: ClientRect | DOMRect
   ) {
@@ -57,41 +53,73 @@ class Draggable extends Component<ComponentProps> {
     }
   }
 
+  public removeCurrentDraggable = () => {
+    const { updateState } = this.context;
+    const { collection, index } = this.props;
+
+    updateState((prevState: ContainerState) => {
+      const copy = [...prevState.values[collection]];
+
+      copy.splice(index, 1);
+
+      return {
+        values: {
+          ...prevState.values,
+          [collection]: copy
+        }
+      };
+    });
+  };
+
+  public removeOnClick = () => {
+    return {
+      onMouseDown: (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+      },
+      onClick: this.removeCurrentDraggable
+    };
+  };
+
   public render() {
     const {
       state: {
         dragState: { currentCollection, currentIndex }
-      }
+      },
+      keyStart,
+      touchStart,
+      mouseDown
     } = this.context;
 
-    const { collection, index } = this.props;
+    const { removeCurrentDraggable } = this;
+
+    const { collection, index, children } = this.props;
 
     const dragging = currentCollection === collection && index === currentIndex;
 
-    return (
-      <div
-        data-index={this.props.index}
-        data-collection={this.props.collection}
-        data-draggable={true}
-        onTouchStart={this.context.touchStart}
-        onMouseDown={this.context.mouseDown}
-        className={`${dragging ? DRAGGING_ELEMENT_ID : ""}`}
-        ref={this.ref}
-        style={{
-          border: "1px solid black",
-          background: `${dragging ? "orange" : "green"}`,
-          padding: "5px",
-          display: "inline-block",
-          fontSize: "60px"
-        }}
-      >
-        {this.props.children}
-      </div>
+    const id = dragging ? { id: DRAGGING_ELEMENT_ID } : {};
+
+    return cloneElement(
+      children({ dragging, removeCurrentDraggable: this.removeOnClick }),
+      {
+        tabIndex: 0,
+        ["data-index"]: index,
+        ["data-collection"]: collection,
+        ["data-draggable"]: true,
+        ["aria-grabbed"]: dragging,
+        ["aria-dropeffect"]: "move",
+        draggable: true,
+        onKeyDown: keyStart,
+        onTouchStart: touchStart,
+        onMouseDown: mouseDown,
+        ref: this.ref,
+        ...id
+      }
     );
   }
 }
 
-export default (props: Props) => (
+export default (props: DraggableProps) => (
   <DroppableContext.Consumer>
     {context => <Draggable {...context} {...props} />}
   </DroppableContext.Consumer>
