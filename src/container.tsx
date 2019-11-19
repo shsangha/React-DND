@@ -4,7 +4,17 @@ import React, {
   Component,
   cloneElement
 } from "react";
-import { Subject, race, fromEvent, forkJoin, of, merge, iif } from "rxjs";
+import {
+  Subject,
+  race,
+  fromEvent,
+  forkJoin,
+  of,
+  merge,
+  iif,
+  Observable,
+  Subscription
+} from "rxjs";
 import {
   switchMap,
   filter,
@@ -44,6 +54,9 @@ export default class Container extends Component<
   public containerRef = createRef<any>();
   public liveRegionRef = createRef<HTMLSpanElement>();
   public droppabeRefs: { [key: string]: HTMLElement } = {};
+
+  public dragSub: Subscription = {} as Subscription;
+  public keyboardSub: Subscription = {} as Subscription;
 
   public registerDroppable = (name: string, ref: any) => {
     this.droppabeRefs[name] = ref;
@@ -411,8 +424,8 @@ export default class Container extends Component<
       { passive: false }
     );
 
-    kbd$.subscribe();
-    drag$.subscribe();
+    this.keyboardSub = kbd$.subscribe();
+    this.dragSub = drag$.subscribe();
   }
 
   public componentWillUnmount() {
@@ -421,6 +434,9 @@ export default class Container extends Component<
       preventTouchScroll,
       { passive: false }
     );
+
+    this.keyboardSub.unsubscribe();
+    this.dragSub.unsubscribe();
   }
 
   public removeDraggable = (name: string, index: number) => {
