@@ -1,22 +1,28 @@
-import React, { Component, createRef, createContext } from "react";
+import React, {
+  Component,
+  createRef,
+  createContext,
+  cloneElement
+} from "react";
 import { ContainerContext } from "./container";
-import { ContainerState } from "./types";
+import {
+  ContainerState,
+  MoveDetail,
+  DroppableProps,
+  DroppableContext as Context
+} from "./types";
 import swap from "./utils/swap";
 import sort from "./utils/sort";
-import { throttle } from "lodash";
 import { DRAGGING_ELEMENT_ID, PLACEHOLDER_ID } from "./constants";
-import { TimelineLite } from "gsap";
+import { TimelineLite, TweenLite } from "gsap";
+import { CustomDragEvent } from "./types";
+import checkScroll from "./utils/checkScroll";
+import ScrollToPlugin from "gsap/ScrollToPlugin";
+const plugins = [ScrollToPlugin]; // just to avoid treeshaking
 
-interface Props {
-  name: string;
-  children: React.ReactChild;
-  behavior: "swap" | "sort" | "shift" | "append";
-  resize: boolean;
-}
+export const DroppableContext = createContext({} as Context);
 
-export const DroppableContext = createContext({} as any);
-
-export default class Droppable extends Component<Props> {
+export default class Droppable extends Component<DroppableProps> {
   public static contextType = ContainerContext;
   public static defaultProps = {
     behavior: "swap",
@@ -33,17 +39,17 @@ export default class Droppable extends Component<Props> {
     this.context.unregisterDroppable(this.props.name);
   }
 
-  public resize = (e: any) => {
-    const {
-      detail: { placeholderRect, offsetX, offsetY }
-    } = e;
+  public resize = (detail: MoveDetail) => {
+    const { placeholderRect, offsets } = detail;
 
     if (this.props.resize) {
-      const draggedElement = document.querySelector(`.${DRAGGING_ELEMENT_ID}`);
+      const draggedElement = document.querySelector(`#${DRAGGING_ELEMENT_ID}`);
       const placeholder = document.querySelector(`#${PLACEHOLDER_ID}`);
 
       if (draggedElement && placeholder) {
         const draggedRect = draggedElement.getBoundingClientRect();
+
+        const { offsetX, offsetY } = offsets;
 
         const scaleX = draggedRect.width / placeholderRect.width;
         const scaleY = draggedRect.height / placeholderRect.height;
@@ -68,159 +74,345 @@ export default class Droppable extends Component<Props> {
     }
   };
 
-  public handleDragEnter = (e: any) => {
+  public handleDragEnter = (e: CustomDragEvent) => {
     e.persist();
+
+    let currrentDragPos: number | null = null;
+    const { detail } = e;
+
+    if (detail) {
+      if (detail.type === "move") {
+        currrentDragPos = detail.position.currentIndex;
+      }
+    }
 
     this.context.updateState(
       (prevState: ContainerState) => {
         const { currentIndex, currentCollection } = prevState.dragState;
-        const { name, behavior } = this.props;
+        const { name, behavior, cap } = this.props;
 
-        if (currentCollection && typeof currentIndex === "number") {
-          const prevArray = [...prevState.values[currentCollection]];
-          const newArray = [...prevState.values[name]];
-          if (behavior === "sort" || behavior === "swap") {
-            prevArray.splice(currentIndex, 1);
-            newArray.splice(
-              typeof e.detail.currentIndex === "number"
-                ? e.detail.currentIndex
-                : newArray.length,
-              0,
-              prevState.values[currentCollection][currentIndex]
-            );
+        if ((cap && cap < prevState.values[name].length) || !cap) {
+          if (currentCollection && typeof currentIndex === "number") {
+            const prevArray = [...prevState.values[currentCollection]];
+            const newArray = [...prevState.values[name]];
 
-            return {
-              dragState: {
-                currentIndex:
-                  typeof e.detail.currentIndex === "number"
-                    ? e.detail.currentIndex
-                    : newArray.length - 1,
-                currentCollection: name
-              },
-              values: {
-                ...prevState.values,
-                [name]: newArray,
-                [currentCollection]: prevArray
-              }
-            };
-          }
+            const newPos =
+              typeof currrentDragPos === "number"
+                ? currrentDragPos
+                : newArray.length;
+            if (behavior === "sort" || behavior === "swap") {
+              prevArray.splice(currentIndex, 1);
+              newArray.splice(
+                newPos,
+                0,
+                prevState.values[currentCollection][currentIndex]
+              );
 
-          if (behavior === "append") {
-            prevArray.splice(currentIndex, 1);
+              this.context.screenReaderAnounce(
+                `Dragged element moved to  ${name} at index ${newPos}`
+              );
 
-            return {
-              dragState: {
-                currentIndex: prevState.values[name].length,
-                currentCollection: name
-              },
-              values: {
-                ...prevState.values,
-                [currentCollection]: prevArray,
-                [name]: [
-                  ...prevState.values[name],
-                  prevState.values[currentCollection][currentIndex]
-                ]
-              }
-            };
-          }
+              return {
+                dragState: {
+                  currentIndex:
+                    typeof currrentDragPos === "number"
+                      ? currrentDragPos
+                      : newArray.length - 1,
+                  currentCollection: name
+                },
+                values: {
+                  ...prevState.values,
+                  [name]: newArray,
+                  [currentCollection]: prevArray
+                }
+              };
+            }
 
-          if (behavior === "shift") {
-            prevArray.splice(currentIndex, 1);
+            if (behavior === "append") {
+              prevArray.splice(currentIndex, 1);
 
-            return {
-              dragState: {
-                currentIndex: 0,
-                currentCollection: name
-              },
-              values: {
-                ...prevState.values,
-                [currentCollection]: prevArray,
-                [name]: [
-                  prevState.values[currentCollection][currentIndex],
-                  ...prevState.values[name]
-                ]
-              }
-            };
-          }
-        }
-      },
-      () => {
-        this.resize(e);
-      }
-    );
-  };
+              this.context.screenReaderAnounce(
+                `Dragged element moved to  ${name} at index ${prevState.values[
+                  name
+                ].length - 1}`
+              );
 
-  public handleDragOver = (e: any) => {
-    e.persist();
+              return {
+                dragState: {
+                  currentIndex: prevState.values[name].length,
+                  currentCollection: name
+                },
+                values: {
+                  ...prevState.values,
+                  [currentCollection]: prevArray,
+                  [name]: [
+                    ...prevState.values[name],
+                    prevState.values[currentCollection][currentIndex]
+                  ]
+                }
+              };
+            }
 
-    this.context.updateState(
-      (prevState: ContainerState) => {
-        if (prevState.dragState.currentIndex !== e.detail.currentIndex) {
-          const { behavior, name } = this.props;
-          const {
-            dragState: { currentCollection, currentIndex },
-            values
-          } = prevState;
+            if (behavior === "shift") {
+              prevArray.splice(currentIndex, 1);
 
-          if (
-            currentCollection &&
-            typeof currentIndex === "number" &&
-            typeof e.detail.currentIndex === "number"
-          ) {
-            if (behavior === "swap" || behavior === "sort") {
-              return behavior === "swap"
-                ? {
-                    dragState: {
-                      currentCollection: name,
-                      currentIndex: e.detail.currentIndex
-                    },
-                    values: {
-                      ...values,
-                      [name]: swap(
-                        e.detail.currentIndex,
-                        currentIndex!,
-                        prevState.values[name]
-                      )
-                    }
-                  }
-                : {
-                    dragState: {
-                      currentCollection: name,
-                      currentIndex: e.detail.currentIndex
-                    },
-                    values: {
-                      ...values,
-                      [name]: sort(
-                        currentIndex!,
-                        e.detail.currentIndex,
-                        prevState.values[name]
-                      )
-                    }
-                  };
+              this.context.screenReaderAnounce(
+                `Dragged element moved to  ${name} at index 0`
+              );
+
+              return {
+                dragState: {
+                  currentIndex: 0,
+                  currentCollection: name
+                },
+                values: {
+                  ...prevState.values,
+                  [currentCollection]: prevArray,
+                  [name]: [
+                    prevState.values[currentCollection][currentIndex],
+                    ...prevState.values[name]
+                  ]
+                }
+              };
             }
           }
         }
       },
       () => {
-        this.resize(e);
+        if (e.detail && e.detail.type === "move") {
+          this.resize(e.detail);
+        } else if (e.detail) {
+          const [x, y] = checkScroll(
+            e.detail.container,
+            this.droppableRef.current,
+            0,
+            0
+          );
+          const { behavior } = this.props;
+
+          const draggedElement = document.querySelector(
+            `#${DRAGGING_ELEMENT_ID}`
+          );
+
+          if (draggedElement) {
+            draggedElement.scrollIntoView(behavior === "shift" ? true : false);
+          }
+        }
       }
     );
   };
 
+  public handleDragOver = (e: CustomDragEvent) => {
+    e.persist();
+
+    const { detail } = e;
+
+    let currrentDragPos: number | null = null;
+
+    this.context.updateState(
+      (prevState: ContainerState) => {
+        const { behavior, name } = this.props;
+        const {
+          dragState: { currentCollection, currentIndex },
+          values
+        } = prevState;
+
+        if (detail) {
+          if (detail.type === "move") {
+            currrentDragPos = detail.position.currentIndex;
+          } else if (
+            detail.type === "ArrowLeft" ||
+            detail.type === "ArrowRight"
+          ) {
+            if (currentCollection && typeof currentIndex === "number") {
+              currrentDragPos =
+                detail.type === "ArrowLeft"
+                  ? currentIndex > 0
+                    ? currentIndex - 1
+                    : null
+                  : currentIndex <
+                    prevState.values[currentCollection].length - 1
+                  ? currentIndex + 1
+                  : null;
+            }
+          }
+        }
+
+        if (prevState.dragState.currentIndex !== currrentDragPos) {
+          if (
+            currentCollection &&
+            typeof currentIndex === "number" &&
+            typeof currrentDragPos === "number"
+          ) {
+            if (behavior === "swap" || behavior === "sort") {
+              if (behavior === "swap") {
+                this.context.screenReaderAnounce(
+                  `Swapped index ${currentIndex} and ${currrentDragPos} in ${name}`
+                );
+
+                return {
+                  dragState: {
+                    currentCollection: name,
+                    currentIndex: currrentDragPos
+                  },
+                  values: {
+                    ...values,
+                    [name]: swap(
+                      currrentDragPos,
+                      currentIndex!,
+                      prevState.values[name]
+                    )
+                  }
+                };
+              } else {
+                this.context.screenReaderAnounce(
+                  `Sorted dragged element to position ${currrentDragPos}`
+                );
+                return {
+                  dragState: {
+                    currentCollection: name,
+                    currentIndex: currrentDragPos
+                  },
+                  values: {
+                    ...values,
+                    [name]: sort(
+                      currentIndex!,
+                      currrentDragPos,
+                      prevState.values[name]
+                    )
+                  }
+                };
+              }
+            }
+          }
+        }
+      },
+      () => {
+        const draggedElement = document.querySelector(
+          `#${DRAGGING_ELEMENT_ID}`
+        );
+
+        if (e.detail && e.detail.type === "move") {
+          this.resize(e.detail);
+        } else if (e.detail && draggedElement) {
+          const [x, y] = checkScroll(
+            this.droppableRef.current,
+            draggedElement as HTMLElement,
+            0,
+            0
+          );
+
+          if (x || y) {
+            TweenLite.to(this.droppableRef.current, 0.3, {
+              scrollTo: {
+                x: `+=${x * draggedElement.clientWidth}`,
+                y: `+=${y * draggedElement.clientHeight}`
+              }
+            });
+          } else {
+            const [x, y] = checkScroll(
+              e.detail.container,
+              draggedElement as HTMLElement,
+              0,
+              0
+            );
+
+            if (x || y) {
+              TweenLite.to(e.detail.container, 0.3, {
+                scrollTo: {
+                  x: `+=${x * draggedElement.clientWidth}`,
+                  y: `+=${y * draggedElement.clientHeight}`
+                }
+              });
+            }
+          }
+        }
+      }
+    );
+  };
+
+  public removeCurrentDroppable = () => {
+    const { updateState } = this.context;
+
+    const { name } = this.props;
+
+    updateState((prevState: ContainerState) => {
+      const copy = { ...prevState.values };
+
+      delete copy[name];
+
+      return {
+        values: copy
+      };
+    });
+  };
+
+  public removeDraggableAtIndex = (index: number) => {
+    const { updateState } = this.context;
+    const { name } = this.props;
+
+    updateState((prevState: ContainerState) => {
+      const copy = [...prevState.values[name]];
+
+      copy.splice(index, 1);
+
+      return {
+        values: {
+          ...prevState.values,
+          [name]: copy
+        }
+      };
+    });
+  };
+
+  public insertInDraggable = (newVal: any, index?: number) => {
+    const { updateState } = this.context;
+    const { name } = this.props;
+
+    updateState((prevState: ContainerState) => {
+      const copy = [...prevState.values[name]];
+
+      if (index) {
+        copy.splice(index, 0, newVal);
+        return {
+          ...prevState.values,
+          [name]: copy
+        };
+      }
+      return {
+        ...prevState.values,
+        [name]: [...prevState.values[name], newVal]
+      };
+    });
+  };
+
   public render() {
+    const { children, name, cap } = this.props;
+
+    const { currentCollection } = this.context.state.dragState;
+
+    const dragging = currentCollection === name;
+
+    const atCapacity = !!(
+      cap && this.context.state.values[currentCollection].length === cap
+    );
+
     return (
       <DroppableContext.Provider value={{ collection: this.props.name }}>
-        <div
-          onDragEnter={this.handleDragEnter}
-          onDragOver={this.handleDragOver}
-          ref={this.droppableRef}
-          data-droppable={this.props.name}
-          style={{
-            overflow: "scroll"
-          }}
-        >
-          {this.props.children}
-        </div>
+        {cloneElement(
+          children({
+            dragging,
+            atCapacity,
+            removeCurrentDroppable: this.removeCurrentDroppable,
+            removeDraggableAtIndex: this.removeDraggableAtIndex
+          }),
+          {
+            ["data-droppable"]: name,
+            onDragEnter: this.handleDragEnter,
+            onDragOver: this.handleDragOver,
+            ref: this.droppableRef
+          }
+        )}
       </DroppableContext.Provider>
     );
   }
