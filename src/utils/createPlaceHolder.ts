@@ -13,9 +13,11 @@ export default (element: HTMLElement, className: string) => {
     placeHolder.style.touchAction = "none";
     placeHolder.style.color = "orange";
     placeHolder.style.margin = "0";
+    placeHolder.style.width = `${rect.width}`;
+    placeHolder.style.height = `${rect.height}`;
     placeHolder.style.display = "inline-block";
-    placeHolder.style.background = "red";
     placeHolder.id = PLACEHOLDER_ID;
+    placeHolder.setAttribute("data-cy", "placeholder");
     if (className) {
       placeHolder.classList.add(className);
     }
