@@ -1,0 +1,33 @@
+.container {
+  width: 900px;
+  height: 900px;
+  background: wheat;
+  transform: translateX(-50%);
+  position: relative;
+  left: 50%;
+  overflow: scroll;
+}
+
+.one,
+.two,
+.three {
+  background: red;
+  width: 500px;
+  height: 200px;
+  position: relative;
+  left: 50%;
+  transform: translateX(-50%);
+  overflow: scroll;
+  display: flex;
+}
+
+.draggable {
+  min-width: 150px;
+  height: 100px;
+  background: orange;
+}
+
+.spacer {
+  width: 100vw;
+  height: 100vh;
+}
