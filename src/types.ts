@@ -11,15 +11,22 @@ export interface ContainerState {
 
 export interface ContainerProps {
   children: (state: {
-    insertDraggable: (name: string, index: number) => void;
+    insertDraggable: (name: string, value: any, index?: number) => void;
     insertDroppable: (name: string, initialValues: any[]) => void;
     removeDraggable: (name: string, index: number) => void;
     removeDroppable: (name: string) => void;
     screenReaderAnnounce: (msg: string) => void;
+    updateState: (
+      change: (
+        prevState: Readonly<ContainerState>,
+        props: Readonly<ContainerProps>
+      ) => ContainerState | Pick<ContainerState, "dragState" | "values"> | null,
+      cb?: () => void
+    ) => void;
     state: ContainerState;
   }) => React.ReactElement;
-  resize: boolean;
   placeholderClass: string;
+  scrollSensitvity: number;
   initialState: {
     [key: string]: any[];
   };
@@ -77,6 +84,7 @@ export interface DroppableProps {
     dragging: boolean;
     removeCurrentDroppable: () => void;
     removeDraggableAtIndex: (index: number) => void;
+    insertInDraggable: (value: any, index?: number) => void;
   }) => React.ReactElement;
   behavior: "swap" | "sort" | "shift" | "append";
   cap?: number;
@@ -91,7 +99,7 @@ export interface DraggableProps {
   index: number;
   children: (args: {
     dragging: boolean;
-    removeCurrentDraggable: () => void;
+    removeOnClick: () => void;
   }) => React.ReactElement;
 }
 
