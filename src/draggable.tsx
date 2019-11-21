@@ -91,8 +91,6 @@ class Draggable extends Component<CombinedDraggableProps> {
       mouseDown
     } = this.context;
 
-    const { removeCurrentDraggable } = this;
-
     const { collection, index, children } = this.props;
 
     const dragging = currentCollection === collection && index === currentIndex;
@@ -113,6 +111,14 @@ class Draggable extends Component<CombinedDraggableProps> {
         onTouchStart: touchStart,
         onMouseDown: mouseDown,
         ref: this.ref,
+        style: {
+          display: "inline-block",
+          WebkitTouchCallout: "none",
+          WebkitUserSelect: "none",
+          MozUserSelect: "none",
+          MsUserSelect: "none",
+          userSelect: "none"
+        },
         ...id
       }
     );
