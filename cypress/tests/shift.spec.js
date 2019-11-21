@@ -172,7 +172,7 @@ describe("tests when behavior of droppable is set to shift", () => {
         });
     });
 
-    it.only("arrow up goes to the previous droppable if it exists", () => {
+    it("arrow up goes to the previous droppable if it exists", () => {
       cy.get("[data-cy^=draggable_grid]")
         .and($res => {
           expect($res[0].textContent).to.equal("11");
