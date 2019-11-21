@@ -379,13 +379,18 @@ export default class Droppable extends Component<DroppableProps> {
       if (index) {
         copy.splice(index, 0, newVal);
         return {
-          ...prevState.values,
-          [name]: copy
+          values: {
+            ...prevState.values,
+            [name]: copy
+          }
         };
       }
+
       return {
-        ...prevState.values,
-        [name]: [...prevState.values[name], newVal]
+        values: {
+          ...prevState.values,
+          [name]: [...prevState.values[name], newVal]
+        }
       };
     });
   };
@@ -410,7 +415,8 @@ export default class Droppable extends Component<DroppableProps> {
             dragging,
             atCapacity,
             removeCurrentDroppable: this.removeCurrentDroppable,
-            removeDraggableAtIndex: this.removeDraggableAtIndex
+            removeDraggableAtIndex: this.removeDraggableAtIndex,
+            insertInDraggable: this.insertInDraggable
           }),
           {
             ["data-droppable"]: name,
