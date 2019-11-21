@@ -79,7 +79,8 @@ export default class Container extends Component<
 
   public static defaultProps = {
     initialState: {},
-    placeholderClass: ""
+    placeholderClass: "",
+    scrollSensitvity: 10
   };
 
   public mouseDown = (e: React.MouseEvent) => {
@@ -172,7 +173,7 @@ export default class Container extends Component<
                   placeHolder,
                   Math.sign(currentX - prevX),
                   Math.sign(currentY - prevY),
-                  10
+                  this.props.scrollSensitvity
                 );
 
                 return of(
@@ -424,13 +425,13 @@ export default class Container extends Component<
     this.keyboardSub = kbd$.subscribe(
       () => {},
       x => {
-        console.log(x);
+        console.error(x);
       }
     );
     this.dragSub = drag$.subscribe(
       () => {},
       x => {
-        console.log(x);
+        console.error(x);
       }
     );
   }
