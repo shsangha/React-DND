@@ -12,7 +12,6 @@ import {
   of,
   merge,
   iif,
-  Observable,
   Subscription
 } from "rxjs";
 import {
@@ -43,7 +42,6 @@ import {
   ContainerProps,
   ElementWDataAttrs
 } from "./types";
-import { ASSITIVE_TEXT_ID } from "./constants";
 
 export const ContainerContext = createContext({} as ContextType);
 
@@ -68,7 +66,7 @@ export default class Container extends Component<
 
   public mouse$ = new Subject<React.MouseEvent>();
   public touch$ = new Subject<React.TouchEvent>();
-  public arrow$ = new Subject<React.KeyboardEvent>();
+  public arrow$ = new Subject<KeyboardEvent>();
 
   public state = {
     dragState: {
@@ -80,8 +78,7 @@ export default class Container extends Component<
   };
 
   public static defaultProps = {
-    initalState: {},
-    resize: true,
+    initialState: {},
     placeholderClass: ""
   };
 
@@ -102,7 +99,7 @@ export default class Container extends Component<
     if (e.keyCode === 32) {
       const a = e.target as HTMLElement;
       a.blur();
-      this.arrow$.next(e);
+      this.arrow$.next(e.nativeEvent);
     }
   };
 
@@ -119,7 +116,7 @@ export default class Container extends Component<
         );
         const placeholderRect = current.getBoundingClientRect();
 
-        const { state: initalState } = this;
+        const { state: initialState } = this;
 
         let currentPos = getDraggableAttrs(current);
 
@@ -140,7 +137,7 @@ export default class Container extends Component<
         }).pipe(
           switchMap(({ offsets }) =>
             merge(
-              fromEvent<React.MouseEvent>(window, "mousemove"),
+              fromEvent<MouseEvent>(window, "mousemove"),
               fromEvent<TouchEvent>(
                 downEvent.target as HTMLElement,
                 "touchmove",
@@ -158,7 +155,7 @@ export default class Container extends Component<
                 moveWithDrag(getEventType(moveEvent), offsets, placeHolder);
               }),
               pairwise(),
-              debounceTime(30),
+              debounceTime(66),
               switchMap(([prevMove, currentMove]) => {
                 const { clientX: prevX, clientY: prevY } = getEventType(
                   prevMove
@@ -307,11 +304,11 @@ export default class Container extends Component<
                 tap(target => {
                   if (target instanceof HTMLElement) {
                     this.setState({
-                      dragState: initalState.dragState
+                      dragState: initialState.dragState
                     });
                     return;
                   }
-                  this.setState(initalState);
+                  this.setState(initialState);
                 })
               )
             )
@@ -323,7 +320,7 @@ export default class Container extends Component<
   public createKeyboard$ = () =>
     this.arrow$.pipe(
       switchMap(e => {
-        const { state: initalState } = this;
+        const { state: initialState } = this;
 
         const current = getDraggable(e.target) as ElementWDataAttrs;
 
@@ -386,7 +383,7 @@ export default class Container extends Component<
             merge(
               fromEvent<MouseEvent>(window, "click").pipe(
                 tap(() => {
-                  this.setState(initalState);
+                  this.setState(initialState);
                 })
               ),
               fromEvent<KeyboardEvent>(window, "keydown").pipe(
@@ -398,9 +395,9 @@ export default class Container extends Component<
                   current.focus();
 
                   if (event.key === "Escape") {
-                    this.setState(initalState);
+                    this.setState(initialState);
                   } else {
-                    this.setState({ dragState: initalState.dragState });
+                    this.setState({ dragState: initialState.dragState });
                   }
                 })
               )
@@ -424,8 +421,18 @@ export default class Container extends Component<
       { passive: false }
     );
 
-    this.keyboardSub = kbd$.subscribe();
-    this.dragSub = drag$.subscribe();
+    this.keyboardSub = kbd$.subscribe(
+      () => {},
+      x => {
+        console.log(x);
+      }
+    );
+    this.dragSub = drag$.subscribe(
+      () => {},
+      x => {
+        console.log(x);
+      }
+    );
   }
 
   public componentWillUnmount() {
@@ -546,7 +553,8 @@ export default class Container extends Component<
               insertDroppable: this.insertDroppable,
               removeDraggable: this.removeDraggable,
               removeDroppable: this.removeDroppable,
-              screenReaderAnnounce: this.screenReaderAnnounce
+              screenReaderAnnounce: this.screenReaderAnnounce,
+              updateState: this.updateState
             }),
             {
               ref: this.containerRef
