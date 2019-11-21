@@ -91,7 +91,7 @@ export default class Droppable extends Component<DroppableProps> {
         const { currentIndex, currentCollection } = prevState.dragState;
         const { name, behavior, cap } = this.props;
 
-        if ((cap && cap < prevState.values[name].length) || !cap) {
+        if ((cap && cap > prevState.values[name].length) || !cap) {
           if (currentCollection && typeof currentIndex === "number") {
             const prevArray = [...prevState.values[currentCollection]];
             const newArray = [...prevState.values[name]];
@@ -108,7 +108,7 @@ export default class Droppable extends Component<DroppableProps> {
                 prevState.values[currentCollection][currentIndex]
               );
 
-              this.context.screenReaderAnounce(
+              this.context.screenReaderAnnounce(
                 `Dragged element moved to  ${name} at index ${newPos}`
               );
 
@@ -131,7 +131,7 @@ export default class Droppable extends Component<DroppableProps> {
             if (behavior === "append") {
               prevArray.splice(currentIndex, 1);
 
-              this.context.screenReaderAnounce(
+              this.context.screenReaderAnnounce(
                 `Dragged element moved to  ${name} at index ${prevState.values[
                   name
                 ].length - 1}`
@@ -156,7 +156,7 @@ export default class Droppable extends Component<DroppableProps> {
             if (behavior === "shift") {
               prevArray.splice(currentIndex, 1);
 
-              this.context.screenReaderAnounce(
+              this.context.screenReaderAnnounce(
                 `Dragged element moved to  ${name} at index 0`
               );
 
@@ -177,7 +177,7 @@ export default class Droppable extends Component<DroppableProps> {
             }
           }
         } else {
-          this.context.screenReaderAnounce(
+          this.context.screenReaderAnnounce(
             `Droppable ${this.props.name} at capaccity`
           );
         }
@@ -250,7 +250,7 @@ export default class Droppable extends Component<DroppableProps> {
           ) {
             if (behavior === "swap" || behavior === "sort") {
               if (behavior === "swap") {
-                this.context.screenReaderAnounce(
+                this.context.screenReaderAnnounce(
                   `Swapped index ${currentIndex} and ${currrentDragPos} in ${name}`
                 );
 
@@ -269,7 +269,7 @@ export default class Droppable extends Component<DroppableProps> {
                   }
                 };
               } else {
-                this.context.screenReaderAnounce(
+                this.context.screenReaderAnnounce(
                   `Sorted dragged element to position ${currrentDragPos}`
                 );
                 return {
@@ -398,7 +398,9 @@ export default class Droppable extends Component<DroppableProps> {
     const dragging = currentCollection === name;
 
     const atCapacity = !!(
-      cap && this.context.state.values[currentCollection].length === cap
+      currentCollection &&
+      cap &&
+      this.context.state.values[currentCollection].length === cap
     );
 
     return (
