@@ -62,6 +62,8 @@ class Draggable extends Component<CombinedDraggableProps> {
 
       copy.splice(index, 1);
 
+      console.log(copy);
+
       return {
         values: {
           ...prevState.values,
@@ -76,8 +78,8 @@ class Draggable extends Component<CombinedDraggableProps> {
       onMouseDown: (e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
-      },
-      onClick: this.removeCurrentDraggable
+        this.removeCurrentDraggable();
+      }
     };
   };
 
@@ -98,7 +100,7 @@ class Draggable extends Component<CombinedDraggableProps> {
     const id = dragging ? { id: DRAGGING_ELEMENT_ID } : {};
 
     return cloneElement(
-      children({ dragging, removeCurrentDraggable: this.removeOnClick }),
+      children({ dragging, removeOnClick: this.removeOnClick }),
       {
         tabIndex: 0,
         ["data-index"]: index,
