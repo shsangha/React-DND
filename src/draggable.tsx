@@ -1,4 +1,7 @@
-import React, { Component, cloneElement, createRef } from "react";
+import * as React from "react";
+
+const { Component, cloneElement, createRef } = React;
+
 import { ContainerContext } from "./container";
 import { DroppableContext } from "./droppable";
 import { TweenLite } from "gsap";
@@ -9,7 +12,7 @@ import {
   CombinedDraggableProps
 } from "./types";
 
-class Draggable extends Component<CombinedDraggableProps> {
+class DraggableElement extends Component<CombinedDraggableProps> {
   public static contextType = ContainerContext;
 
   public ref = createRef<any>();
@@ -61,8 +64,6 @@ class Draggable extends Component<CombinedDraggableProps> {
       const copy = [...prevState.values[collection]];
 
       copy.splice(index, 1);
-
-      console.log(copy);
 
       return {
         values: {
@@ -127,8 +128,8 @@ class Draggable extends Component<CombinedDraggableProps> {
   }
 }
 
-export default (props: DraggableProps) => (
+export const Draggable = (props: DraggableProps) => (
   <DroppableContext.Consumer>
-    {context => <Draggable {...context} {...props} />}
+    {context => <DraggableElement {...context} {...props} />}
   </DroppableContext.Consumer>
 );

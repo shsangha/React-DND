@@ -1,9 +1,5 @@
-import React, {
-  createContext,
-  createRef,
-  Component,
-  cloneElement
-} from "react";
+import * as React from "react";
+const { createContext, createRef, cloneElement } = React;
 import {
   Subject,
   race,
@@ -45,10 +41,7 @@ import {
 
 export const ContainerContext = createContext({} as ContextType);
 
-export default class Container extends Component<
-  ContainerProps,
-  ContainerState
-> {
+export class Container extends React.Component<ContainerProps, ContainerState> {
   public containerRef = createRef<any>();
   public liveRegionRef = createRef<HTMLSpanElement>();
   public droppabeRefs: { [key: string]: HTMLElement } = {};
@@ -277,7 +270,7 @@ export default class Container extends Component<
             merge(
               fromEvent<FocusEvent>(window, "blur").pipe(
                 tap(() => {
-                  placeHolder.remove();
+                  //     placeHolder.remove();
                 })
               ),
               merge(
@@ -285,7 +278,7 @@ export default class Container extends Component<
                 fromEvent<TouchEvent>(window, "touchend")
               ).pipe(
                 tap(() => {
-                  placeHolder.remove();
+                  //     placeHolder.remove();
                 }),
                 tap(() => {
                   this.screenReaderAnnounce("Drag ended");
