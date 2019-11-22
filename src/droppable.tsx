@@ -1,9 +1,6 @@
-import React, {
-  Component,
-  createRef,
-  createContext,
-  cloneElement
-} from "react";
+import * as React from "react";
+
+const { createRef, createContext, cloneElement } = React;
 import { ContainerContext } from "./container";
 import {
   ContainerState,
@@ -22,7 +19,7 @@ const plugins = [ScrollToPlugin]; // just to avoid treeshaking
 
 export const DroppableContext = createContext({} as Context);
 
-export default class Droppable extends Component<DroppableProps> {
+export class Droppable extends React.Component<DroppableProps> {
   public static contextType = ContainerContext;
   public static defaultProps = {
     behavior: "swap",
