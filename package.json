@@ -1,8 +1,9 @@
 {
   "name": "@ssangha/dnd",
-  "version": "1.1.1",
+  "version": "1.1.16",
   "description": "A11Y friendly drag and drop library that supports Touch & Keyboard dragging. Build with Rxjs & Typescript. Tested with Cypress",
-  "main": "jest.config.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "dependencies": {
     "gsap": "^2.1.3",
     "react": "^16.8.6",
