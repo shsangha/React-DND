@@ -1,10 +1,9 @@
-import React from "react";
-import Container from "../../container";
-import Droppable from "../../droppable";
-import Draggable from "../../draggable";
+import * as React from "react";
+import { Container, Draggable, Droppable } from "../../index";
+
 import { RouteComponentProps } from "@reach/router";
 
-export default (props: RouteComponentProps) => (
+export default (_: RouteComponentProps) => (
   <Container
     initialState={{
       test: [1]
