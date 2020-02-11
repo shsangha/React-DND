@@ -15,6 +15,7 @@ import { TimelineLite, TweenLite } from "gsap";
 import { CustomDragEvent } from "./types";
 import checkScroll from "./utils/checkScroll";
 import ScrollToPlugin from "gsap/ScrollToPlugin";
+import { KeyboardDetail } from "./types";
 const plugins = [ScrollToPlugin]; // just to avoid treeshaking
 
 export const DroppableContext = createContext({} as Context);
@@ -89,6 +90,12 @@ export class Droppable extends React.Component<DroppableProps> {
           if (currentCollection && typeof currentIndex === "number") {
             const prevArray = [...prevState.values[currentCollection]];
             const newArray = [...prevState.values[name]];
+
+            if (e.detail && "callback" in e.detail) {
+              if (e.detail.callback) {
+                e.detail.callback();
+              }
+            }
 
             const newPos =
               typeof currrentDragPos === "number"
@@ -178,6 +185,7 @@ export class Droppable extends React.Component<DroppableProps> {
             `Droppable ${this.props.name} at capaccity`
           );
         }
+        return prevState;
       },
       () => {
         if (e.detail && e.detail.type === "move") {

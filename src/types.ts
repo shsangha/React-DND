@@ -65,6 +65,7 @@ export interface MoveDetail {
 
 export interface KeyboardDetail {
   type: "ArrowUp" | "ArrowDown" | "ArrowLeft" | "ArrowRight";
+  callback?: () => void;
   container: HTMLElement;
 }
 

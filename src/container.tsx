@@ -353,13 +353,17 @@ export class Container extends React.Component<ContainerProps, ContainerState> {
             )
           ),
           tap(event => {
+            console.log(index);
+
             if (event.key === "ArrowDown") {
               if (index < refNames.length - 1) {
-                index++;
-
-                this.droppabeRefs[refNames[index]].dispatchEvent(
+                this.droppabeRefs[refNames[index + 1]].dispatchEvent(
                   createEvent("dragenter", {
                     type: "ArrowDown",
+                    callback: () => {
+                      console.log("callback executed");
+                      index++;
+                    },
                     container: this.containerRef.current
                   })
                 );
@@ -367,11 +371,14 @@ export class Container extends React.Component<ContainerProps, ContainerState> {
             }
             if (event.key === "ArrowUp") {
               if (index > 0) {
-                index--;
-
-                this.droppabeRefs[refNames[index]].dispatchEvent(
+                this.droppabeRefs[refNames[index - 1]].dispatchEvent(
                   createEvent("dragenter", {
                     type: "ArrowUp",
+                    callback: () => {
+                      console.log("callback executed");
+
+                      index--;
+                    },
                     container: this.containerRef.current
                   })
                 );
