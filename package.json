@@ -1,6 +1,6 @@
 {
   "name": "@ssangha/dnd",
-  "version": "1.1.994",
+  "version": "1.1.995",
   "description": "A11Y friendly drag and drop library that supports Touch & Keyboard dragging. Build with Rxjs & Typescript. Tested with Cypress",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
