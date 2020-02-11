@@ -29,7 +29,7 @@ const App = () => (
     <BehaviorTests path="behavior/*" />
     <Scrolling path="scrolling" />
     <DynamicDroppable path="dynamicDroppable" />
-    <ProdTest path="/test" />
+    <ProdTest path="/" />
   </Router>
 );
 
