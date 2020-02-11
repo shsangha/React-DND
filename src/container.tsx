@@ -104,9 +104,12 @@ export class Container extends React.Component<ContainerProps, ContainerState> {
 
         const current = getDraggable(downEvent.target) as ElementWDataAttrs;
 
+        const offsets = getOffsets(downEvent, current);
+
         const placeHolder = createPlaceHolder(
           current,
-          this.props.placeholderClass
+          this.props.placeholderClass,
+          offsets
         );
         const placeholderRect = current.getBoundingClientRect();
 
@@ -127,7 +130,7 @@ export class Container extends React.Component<ContainerProps, ContainerState> {
         );
 
         return forkJoin({
-          offsets: of({ ...getOffsets(downEvent, current) })
+          offsets: of({ ...offsets })
         }).pipe(
           switchMap(({ offsets }) =>
             merge(
@@ -275,7 +278,10 @@ export class Container extends React.Component<ContainerProps, ContainerState> {
               ),
               merge(
                 fromEvent<MouseEvent>(window, "mouseup"),
-                fromEvent<TouchEvent>(window, "touchend")
+                fromEvent<TouchEvent>(
+                  downEvent.target as HTMLElement,
+                  "touchend"
+                )
               ).pipe(
                 tap(() => {
                   placeHolder.remove();

@@ -37,7 +37,7 @@ export class Droppable extends React.Component<DroppableProps> {
   }
 
   public resize = (detail: MoveDetail) => {
-    const { placeholderRect, offsets } = detail;
+    const { placeholderRect } = detail;
 
     if (this.props.resize) {
       const draggedElement = document.querySelector(`#${DRAGGING_ELEMENT_ID}`);
@@ -46,14 +46,11 @@ export class Droppable extends React.Component<DroppableProps> {
       if (draggedElement && placeholder) {
         const draggedRect = draggedElement.getBoundingClientRect();
 
-        const { offsetX, offsetY } = offsets;
-
         const scaleX = draggedRect.width / placeholderRect.width;
         const scaleY = draggedRect.height / placeholderRect.height;
 
         new TimelineLite()
           .to(placeholder, 0.3, {
-            transformOrigin: `${offsetX}px ${offsetY}px`,
             scaleX,
             scaleY
           })
