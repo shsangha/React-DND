@@ -7,14 +7,14 @@ export default (element: HTMLElement, className: string) => {
 
   requestAnimationFrame(() => {
     placeHolder.style.position = "absolute";
-    placeHolder.style.top = `${rect.top}`;
-    placeHolder.style.left = `${rect.left}`;
+    placeHolder.style.top = `${rect.top}px`;
+    placeHolder.style.left = `${rect.left}px`;
     placeHolder.style.pointerEvents = "none";
     placeHolder.style.touchAction = "none";
     placeHolder.style.color = "orange";
     placeHolder.style.margin = "0";
-    placeHolder.style.width = `${rect.width}`;
-    placeHolder.style.height = `${rect.height}`;
+    placeHolder.style.width = `${rect.width}px`;
+    placeHolder.style.height = `${rect.height}px`;
     placeHolder.style.display = "inline-block";
     placeHolder.id = PLACEHOLDER_ID;
     placeHolder.setAttribute("data-cy", "placeholder");
