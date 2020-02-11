@@ -5,6 +5,7 @@ import PlaceholderMovement from "./testComponents/PlaceholderMovement";
 import SimpleMultiContainer from "./testComponents/simpleMultiContainer";
 import Scrolling from "./testComponents/scrolling";
 import DynamicDroppable from "./testComponents/dynamicDroppables";
+import ProdTest from "./actualTest";
 
 const BehaviorTests = (_: RouteComponentProps) => {
   const Sort = SimpleMultiContainer("sort");
@@ -28,6 +29,7 @@ const App = () => (
     <BehaviorTests path="behavior/*" />
     <Scrolling path="scrolling" />
     <DynamicDroppable path="dynamicDroppable" />
+    <ProdTest path="/test" />
   </Router>
 );
 

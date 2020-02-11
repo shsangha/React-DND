@@ -1,6 +1,6 @@
 {
   "name": "@ssangha/dnd",
-  "version": "1.1.16",
+  "version": "1.1.96",
   "description": "A11Y friendly drag and drop library that supports Touch & Keyboard dragging. Build with Rxjs & Typescript. Tested with Cypress",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -8,7 +8,8 @@
     "gsap": "^2.1.3",
     "react": "^16.8.6",
     "react-dom": "^16.8.6",
-    "rxjs": "^6.5.2"
+    "rxjs": "^6.5.2",
+    "webpack": "^4.41.5"
   },
   "devDependencies": {
     "@babel/core": "^7.4.5",
@@ -32,10 +33,10 @@
     "babel-loader": "^8.0.6",
     "babel-plugin-dynamic-import-node": "^2.2.0",
     "css-loader": "^2.1.1",
-    "cypress": "^3.6.1",
     "cypress-mouse-position": "^1.0.0",
     "enzyme": "^3.9.0",
     "enzyme-adapter-react-16": "^1.13.1",
+    "file-loader": "^5.0.2",
     "html-webpack-plugin": "^3.2.0",
     "jest": "^24.9.0",
     "jest-cli": "^24.8.0",
@@ -53,7 +54,7 @@
     "webpack-dev-server": "^3.4.1"
   },
   "scripts": {
-    "test": "cypress run --browser chrome",
+    "test": "npx cypress run --browser chrome",
     "dev-local": "webpack-dev-server --config webpack-dev.js "
   },
   "repository": {

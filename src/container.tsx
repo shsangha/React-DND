@@ -270,7 +270,7 @@ export class Container extends React.Component<ContainerProps, ContainerState> {
             merge(
               fromEvent<FocusEvent>(window, "blur").pipe(
                 tap(() => {
-                  //     placeHolder.remove();
+                  placeHolder.remove();
                 })
               ),
               merge(
@@ -278,7 +278,7 @@ export class Container extends React.Component<ContainerProps, ContainerState> {
                 fromEvent<TouchEvent>(window, "touchend")
               ).pipe(
                 tap(() => {
-                  //     placeHolder.remove();
+                  placeHolder.remove();
                 }),
                 tap(() => {
                   this.screenReaderAnnounce("Drag ended");
