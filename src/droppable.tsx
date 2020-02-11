@@ -111,6 +111,7 @@ export class Droppable extends React.Component<DroppableProps> {
 
               return {
                 dragState: {
+                  ...prevState.dragState,
                   currentIndex:
                     typeof currrentDragPos === "number"
                       ? currrentDragPos
@@ -136,6 +137,7 @@ export class Droppable extends React.Component<DroppableProps> {
 
               return {
                 dragState: {
+                  ...prevState.dragState,
                   currentIndex: prevState.values[name].length,
                   currentCollection: name
                 },
@@ -159,6 +161,7 @@ export class Droppable extends React.Component<DroppableProps> {
 
               return {
                 dragState: {
+                  ...prevState.dragState,
                   currentIndex: 0,
                   currentCollection: name
                 },
@@ -253,6 +256,7 @@ export class Droppable extends React.Component<DroppableProps> {
 
                 return {
                   dragState: {
+                    ...prevState.dragState,
                     currentCollection: name,
                     currentIndex: currrentDragPos
                   },
@@ -271,6 +275,7 @@ export class Droppable extends React.Component<DroppableProps> {
                 );
                 return {
                   dragState: {
+                    ...prevState.dragState,
                     currentCollection: name,
                     currentIndex: currrentDragPos
                   },
