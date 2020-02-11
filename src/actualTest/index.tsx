@@ -42,11 +42,7 @@ export default (_: RouteComponentProps) => {
                       {values.horizontal.map((src: string, index) => {
                         return (
                           <Draggable index={index} key={src}>
-                            {() => (
-                              <div className="bui">
-                                <img className="horizontal_img" src={src} />
-                              </div>
-                            )}
+                            {() => <img className="horizontal_img" src={src} />}
                           </Draggable>
                         );
                       })}
