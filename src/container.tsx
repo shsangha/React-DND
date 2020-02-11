@@ -73,7 +73,7 @@ export class Container extends React.Component<ContainerProps, ContainerState> {
   public static defaultProps = {
     initialState: {},
     placeholderClass: "",
-    scrollSensitvity: 10
+    scrollSensitvity: 20
   };
 
   public mouseDown = (e: React.MouseEvent) => {
@@ -141,7 +141,10 @@ export class Container extends React.Component<ContainerProps, ContainerState> {
                 {
                   passive: false
                 }
-              )
+              ),
+              fromEvent<TouchEvent>(window, "touchmove", {
+                passive: false
+              })
             ).pipe(
               map(e => {
                 e.preventDefault();
@@ -281,6 +284,10 @@ export class Container extends React.Component<ContainerProps, ContainerState> {
                 fromEvent<TouchEvent>(
                   downEvent.target as HTMLElement,
                   "touchend"
+                ),
+                fromEvent<TouchEvent>(
+                  downEvent.target as HTMLElement,
+                  "touchcancel"
                 )
               ).pipe(
                 tap(() => {
@@ -411,15 +418,20 @@ export class Container extends React.Component<ContainerProps, ContainerState> {
       })
     );
 
+  public stopScroll = (e: Event) => {
+    if (this.state.dragState.moveType === "pointer") {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  };
+
   public componentDidMount() {
     const drag$ = this.createDrag$();
     const kbd$ = this.createKeyboard$();
 
-    this.containerRef.current.addEventListener(
-      "touchmove",
-      preventTouchScroll,
-      { passive: false }
-    );
+    this.containerRef.current.addEventListener("touchmove", this.stopScroll, {
+      passive: false
+    });
 
     this.keyboardSub = kbd$.subscribe(
       () => {},
@@ -436,11 +448,9 @@ export class Container extends React.Component<ContainerProps, ContainerState> {
   }
 
   public componentWillUnmount() {
-    this.containerRef.current.removeEventListener(
-      "tochmove",
-      preventTouchScroll,
-      { passive: false }
-    );
+    this.containerRef.current.removeEventListener("tochmove", this.stopScroll, {
+      passive: false
+    });
 
     this.keyboardSub.unsubscribe();
     this.dragSub.unsubscribe();
