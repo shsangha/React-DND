@@ -69,7 +69,7 @@ export default (_: RouteComponentProps) => {
               </div>
               <div className="grid_wrapper">
                 <h2 className="category">Starters</h2>
-                <Droppable name="grid">
+                <Droppable cap={5} name="grid">
                   {() => (
                     <div className="grid_droppable">
                       {values.grid.map((src, index) => {
